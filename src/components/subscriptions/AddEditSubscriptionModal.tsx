@@ -1,0 +1,978 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+  X, 
+  Sparkles, 
+  Plus, 
+  Trash2, 
+  Check, 
+  Calendar, 
+  CreditCard, 
+  User, 
+  Clock, 
+  RotateCcw, 
+  Save, 
+  Building,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Copy
+} from 'lucide-react';
+import { 
+  Subscription, 
+  AccountPool,
+  SubscriptionCategory, 
+  BillingCycle, 
+  CurrencyCode, 
+  ActionChecklistItem 
+} from '@/types/subscription';
+import { PRESET_SERVICES, PresetService, buildDefaultChecklist } from '@/lib/presets';
+import { formatDate, formatDateIndo, formatCurrency, formatNumberIDR, parseCurrencyInput } from '@/lib/utils';
+import { format, addMonths, parseISO, isValid } from 'date-fns';
+import { DatePickerField } from '@/components/ui/DatePickerField';
+
+interface AddEditSubscriptionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (subscriptionData: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>, editId?: string) => void;
+  initialSubscription?: Subscription | null;
+  pools?: AccountPool[];
+  onOpenAddPoolModal?: () => void;
+  preselectedPool?: AccountPool | null;
+}
+
+const DURATION_PACKAGES = [
+  { id: '1m', label: '1 Bulan', months: 1 },
+  { id: '2m', label: '2 Bulan', months: 2 },
+  { id: '3m', label: '3 Bulan', months: 3 },
+  { id: '6m', label: '6 Bulan', months: 6 },
+  { id: '12m', label: '1 Tahun', months: 12 },
+];
+
+const DRAFT_STORAGE_KEY = 'subtracker_member_form_draft';
+
+function getInitialFormData(
+  initialSubscription?: Subscription | null,
+  preselectedPool?: AccountPool | null
+) {
+  if (initialSubscription) {
+    return {
+      name: initialSubscription.name,
+      provider: initialSubscription.provider,
+      category: initialSubscription.category,
+      memberName: initialSubscription.memberName || '',
+      accountEmail: initialSubscription.accountEmail,
+      clientPhone: initialSubscription.clientPhone || '',
+      poolId: initialSubscription.poolId,
+      poolName: initialSubscription.poolName || '',
+      slotNumber: initialSubscription.slotNumber,
+      startDate: initialSubscription.startDate,
+      endDate: initialSubscription.endDate,
+      price: initialSubscription.price,
+      currency: initialSubscription.currency,
+      billingCycle: initialSubscription.billingCycle,
+      autoRenews: initialSubscription.autoRenews,
+      avatarColor: initialSubscription.avatarColor || 'bg-blue-600',
+      notes: initialSubscription.notes || '',
+      checklist: initialSubscription.checklist,
+      reminderOffsets: initialSubscription.reminderOffsets || [-7, -3, -1, 0, 1],
+      activeDurationPackage: '',
+      selectedPreset: '',
+      hasRestoredDraft: false,
+    };
+  }
+
+  if (preselectedPool) {
+    return {
+      name: `${preselectedPool.name} - Slot`,
+      provider: preselectedPool.provider,
+      category: preselectedPool.category,
+      memberName: '',
+      accountEmail: '',
+      clientPhone: '',
+      poolId: preselectedPool.id,
+      poolName: preselectedPool.name,
+      slotNumber: undefined,
+      startDate: format(new Date(), 'yyyy-MM-dd'),
+      endDate: preselectedPool.masterEndDate || format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
+      price: 35000,
+      currency: 'IDR' as CurrencyCode,
+      billingCycle: 'monthly' as BillingCycle,
+      autoRenews: false,
+      avatarColor: preselectedPool.avatarColor || 'bg-blue-600',
+      notes: '',
+      checklist: buildDefaultChecklist(preselectedPool.name),
+      reminderOffsets: [-7, -3, -1, 0, 1],
+      activeDurationPackage: preselectedPool.masterEndDate ? 'pool_end' : '1m',
+      selectedPreset: '',
+      hasRestoredDraft: false,
+    };
+  }
+
+  // Check localStorage draft if in browser
+  if (typeof window !== 'undefined') {
+    const savedDraftJson = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (savedDraftJson) {
+      try {
+        const draft = JSON.parse(savedDraftJson);
+        return {
+          name: draft.name || PRESET_SERVICES[0].name,
+          provider: draft.provider || PRESET_SERVICES[0].provider,
+          category: draft.category || PRESET_SERVICES[0].category,
+          memberName: draft.memberName || '',
+          accountEmail: draft.accountEmail || '',
+          clientPhone: draft.clientPhone || '',
+          poolId: draft.poolId,
+          poolName: draft.poolName || '',
+          slotNumber: draft.slotNumber,
+          startDate: draft.startDate || format(new Date(), 'yyyy-MM-dd'),
+          endDate: draft.endDate || format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
+          price: typeof draft.price === 'number' ? draft.price : 35000,
+          currency: (draft.currency || 'IDR') as CurrencyCode,
+          billingCycle: (draft.billingCycle || 'monthly') as BillingCycle,
+          autoRenews: !!draft.autoRenews,
+          avatarColor: draft.avatarColor || 'bg-blue-600',
+          notes: draft.notes || '',
+          checklist: draft.checklist || buildDefaultChecklist(PRESET_SERVICES[0].name),
+          reminderOffsets: draft.reminderOffsets || [-7, -3, -1, 0, 1],
+          activeDurationPackage: draft.activeDurationPackage || '1m',
+          selectedPreset: draft.selectedPreset || PRESET_SERVICES[0].name,
+          hasRestoredDraft: Boolean(draft.memberName || draft.accountEmail || draft.clientPhone),
+        };
+      } catch {}
+    }
+  }
+
+  // Default preset
+  return {
+    name: PRESET_SERVICES[0].name,
+    provider: PRESET_SERVICES[0].provider,
+    category: PRESET_SERVICES[0].category,
+    memberName: '',
+    accountEmail: '',
+    clientPhone: '',
+    poolId: undefined as string | undefined,
+    poolName: PRESET_SERVICES[0].defaultPoolPrefix,
+    slotNumber: undefined as number | undefined,
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
+    price: PRESET_SERVICES[0].defaultPrice,
+    currency: PRESET_SERVICES[0].defaultCurrency,
+    billingCycle: PRESET_SERVICES[0].defaultBillingCycle,
+    autoRenews: false,
+    avatarColor: PRESET_SERVICES[0].brandColor,
+    notes: '',
+    checklist: buildDefaultChecklist(PRESET_SERVICES[0].name),
+    reminderOffsets: PRESET_SERVICES[0].defaultReminderOffsets,
+    activeDurationPackage: '1m',
+    selectedPreset: PRESET_SERVICES[0].name,
+    hasRestoredDraft: false,
+  };
+}
+
+export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialSubscription,
+  pools = [],
+  onOpenAddPoolModal,
+  preselectedPool,
+}) => {
+  const initial = getInitialFormData(initialSubscription, preselectedPool);
+
+  const [selectedPreset, setSelectedPreset] = useState<string>(initial.selectedPreset);
+  const [name, setName] = useState(initial.name);
+  const [provider, setProvider] = useState(initial.provider);
+  const [category, setCategory] = useState<SubscriptionCategory>(initial.category);
+  const [memberName, setMemberName] = useState(initial.memberName);
+  const [accountEmail, setAccountEmail] = useState(initial.accountEmail);
+  const [clientPhone, setClientPhone] = useState(initial.clientPhone);
+  const [poolId, setPoolId] = useState<string | undefined>(initial.poolId);
+  const [poolName, setPoolName] = useState(initial.poolName);
+  const [slotNumber] = useState<number | undefined>(initial.slotNumber);
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [endDate, setEndDate] = useState(initial.endDate);
+  const [activeDurationPackage, setActiveDurationPackage] = useState<string>(initial.activeDurationPackage);
+  const [price, setPrice] = useState<number>(initial.price);
+  const [currency] = useState<CurrencyCode>(initial.currency);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(initial.billingCycle);
+  const [autoRenews] = useState(initial.autoRenews);
+  const [avatarColor, setAvatarColor] = useState(initial.avatarColor);
+  const [notes, setNotes] = useState(initial.notes);
+  const [checklist, setChecklist] = useState<ActionChecklistItem[]>(initial.checklist);
+  const [reminderOffsets] = useState<number[]>(initial.reminderOffsets);
+  const [newChecklistText, setNewChecklistText] = useState('');
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(initial.hasRestoredDraft);
+  const [showPoolPassword, setShowPoolPassword] = useState(false);
+  const [copiedPoolPassword, setCopiedPoolPassword] = useState(false);
+
+  const currentPool = pools.find(p => p.id === poolId) || preselectedPool;
+
+  // Auto-Save Draft to localStorage on each change (only in add mode)
+  useEffect(() => {
+    if (!isOpen || initialSubscription) return;
+
+    const draftData = {
+      name,
+      provider,
+      category,
+      memberName,
+      accountEmail,
+      clientPhone,
+      poolId,
+      poolName,
+      slotNumber,
+      startDate,
+      endDate,
+      price,
+      currency,
+      billingCycle,
+      autoRenews,
+      avatarColor,
+      notes,
+      checklist,
+      reminderOffsets,
+      activeDurationPackage,
+      selectedPreset,
+      updatedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
+  }, [
+    isOpen,
+    initialSubscription,
+    name,
+    provider,
+    category,
+    memberName,
+    accountEmail,
+    clientPhone,
+    poolId,
+    poolName,
+    slotNumber,
+    startDate,
+    endDate,
+    price,
+    currency,
+    billingCycle,
+    autoRenews,
+    avatarColor,
+    notes,
+    checklist,
+    reminderOffsets,
+    activeDurationPackage,
+    selectedPreset,
+  ]);
+
+  const applyPreset = (preset: PresetService) => {
+    setSelectedPreset(preset.name);
+    setName(preset.name);
+    setProvider(preset.provider);
+    setCategory(preset.category);
+    setPrice(preset.defaultPrice);
+    setBillingCycle(preset.defaultBillingCycle);
+    setAvatarColor(preset.brandColor);
+    setPoolName(preset.defaultPoolPrefix);
+    setPoolId(undefined);
+    setChecklist(buildDefaultChecklist(preset.name));
+    setMemberName('');
+    setAccountEmail('');
+    setClientPhone('');
+    
+    const start = new Date();
+    const end = addMonths(start, 1);
+    setStartDate(format(start, 'yyyy-MM-dd'));
+    setEndDate(format(end, 'yyyy-MM-dd'));
+    setActiveDurationPackage('1m');
+  };
+
+  const handleClearDraft = () => {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+    applyPreset(PRESET_SERVICES[0]);
+    setHasRestoredDraft(false);
+  };
+
+  const handleSelectPool = (selectedPoolId: string) => {
+    if (!selectedPoolId) {
+      setPoolId(undefined);
+      setPoolName('');
+      return;
+    }
+    const matched = pools.find(p => p.id === selectedPoolId);
+    if (matched) {
+      setPoolId(matched.id);
+      setPoolName(matched.name);
+      setProvider(matched.provider);
+      setCategory(matched.category);
+      // Smart Auto-Name from Pool & Member Name
+      if (memberName) {
+        setName(`${matched.name} - ${memberName}`);
+      } else if (!name || name === PRESET_SERVICES[0].name || name.includes('Slot')) {
+        setName(`${matched.name} - Slot Member`);
+      }
+      setAvatarColor(matched.avatarColor || 'bg-blue-600');
+      if (activeDurationPackage === 'pool_end' && matched.masterEndDate) {
+        setEndDate(matched.masterEndDate);
+      }
+    }
+  };
+
+  const handleMemberNameChange = (val: string) => {
+    setMemberName(val);
+    const pool = pools.find(p => p.id === poolId) || preselectedPool;
+    if (pool && (!name || name.startsWith(pool.name) || name === PRESET_SERVICES[0].name || name.includes('Slot'))) {
+      setName(val ? `${pool.name} - ${val}` : `${pool.name} - Slot Member`);
+    }
+  };
+
+  const handleApplyEmailDomain = (domain: string) => {
+    if (!accountEmail) {
+      setAccountEmail(domain);
+      return;
+    }
+    const prefix = accountEmail.includes('@') ? accountEmail.split('@')[0] : accountEmail;
+    setAccountEmail(`${prefix}${domain}`);
+  };
+
+  const handleSelectDurationPackage = (pkg: typeof DURATION_PACKAGES[0]) => {
+    setActiveDurationPackage(pkg.id);
+    try {
+      const parsedStart = parseISO(startDate);
+      if (isValid(parsedStart)) {
+        const calculatedEnd = addMonths(parsedStart, pkg.months);
+        setEndDate(format(calculatedEnd, 'yyyy-MM-dd'));
+        
+        if (pkg.months === 1) setBillingCycle('monthly');
+        else if (pkg.months === 3) setBillingCycle('quarterly');
+        else if (pkg.months === 6) setBillingCycle('semi_annual');
+        else if (pkg.months === 12) setBillingCycle('yearly');
+      }
+    } catch (e) {
+      console.error("Failed to calculate end date from duration package", e);
+    }
+  };
+
+  const handleSelectPoolEnd = () => {
+    if (currentPool && currentPool.masterEndDate) {
+      setActiveDurationPackage('pool_end');
+      setEndDate(currentPool.masterEndDate);
+      setBillingCycle('custom');
+    } else if (pools.length > 0) {
+      // Pick first pool
+      handleSelectPool(pools[0].id);
+      if (pools[0].masterEndDate) {
+        setEndDate(pools[0].masterEndDate);
+      }
+      setActiveDurationPackage('pool_end');
+      setBillingCycle('custom');
+    }
+  };
+
+  const handleStartDateChange = (newStartDateStr: string) => {
+    setStartDate(newStartDateStr);
+    if (activeDurationPackage && activeDurationPackage !== 'pool_end') {
+      const matchedPkg = DURATION_PACKAGES.find(p => p.id === activeDurationPackage);
+      if (matchedPkg) {
+        try {
+          const parsedStart = parseISO(newStartDateStr);
+          if (isValid(parsedStart)) {
+            const calculatedEnd = addMonths(parsedStart, matchedPkg.months);
+            setEndDate(format(calculatedEnd, 'yyyy-MM-dd'));
+          }
+        } catch {}
+      }
+    }
+  };
+
+  const handleAddChecklistItem = () => {
+    if (!newChecklistText.trim()) return;
+    const newItem: ActionChecklistItem = {
+      id: `item-${Date.now()}`,
+      title: newChecklistText.trim(),
+      completed: false,
+      required: true,
+    };
+    setChecklist(prev => [...prev, newItem]);
+    setNewChecklistText('');
+  };
+
+  const handleRemoveChecklistItem = (id: string) => {
+    setChecklist(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !endDate || !accountEmail || !memberName) return;
+
+    onSave(
+      {
+        name,
+        provider: provider || name,
+        category,
+        accountEmail,
+        memberName,
+        clientPhone,
+        poolId,
+        poolName,
+        slotNumber,
+        startDate,
+        endDate,
+        price,
+        currency,
+        billingCycle,
+        autoRenews,
+        status: 'ACTIVE',
+        checklist,
+        reminderOffsets,
+        notes,
+        tags: [provider, poolName].filter(Boolean) as string[],
+        avatarColor,
+      },
+      initialSubscription?.id
+    );
+
+    if (!initialSubscription) {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+  };
+
+  // Escape key listener to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200 cursor-pointer"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="bezel-shell w-full max-w-2xl max-h-[90vh] scale-100 animate-in zoom-in-95 duration-200 cursor-default"
+      >
+        <div className="bezel-core p-6 flex flex-col justify-between max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20 flex items-center justify-center">
+                <User className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    {initialSubscription ? 'Edit Data Member / Slot' : 'Tambah Member & Alokasi Slot Baru'}
+                  </h3>
+                  {!initialSubscription && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full ring-1 ring-emerald-500/20">
+                      <Save className="h-3 w-3" /> Auto-Saved
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Daftarkan member ke shared pool dengan proteksi pengingat kick manual
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!initialSubscription && (hasRestoredDraft || memberName || accountEmail) && (
+                <button
+                  type="button"
+                  onClick={handleClearDraft}
+                  title="Reset isian draft form"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="h-3 w-3" /> Reset Draft
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Form Content */}
+          <form onSubmit={handleSubmit} className="py-4 space-y-4 text-xs">
+            {/* Template Presets */}
+            {!initialSubscription && !preselectedPool && (
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  Template Layanan Cepat:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_SERVICES.map((p) => {
+                    const isSelected = selectedPreset === p.name;
+                    return (
+                      <button
+                        type="button"
+                        key={p.name}
+                        onClick={() => applyPreset(p)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                            : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span className={`h-2 w-2 rounded-full ${p.brandColor}`} />
+                        <span>{p.name.split(' ')[0]} {p.name.split(' ')[1] || ''}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Member Details */}
+            <div className="p-4 rounded-2xl bg-slate-100/50 dark:bg-slate-800/30 border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                <User className="h-4 w-4 text-blue-500" />
+                <span>Informasi Member / Pelanggan</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Nama Member / Klien *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberName}
+                    onChange={(e) => handleMemberNameChange(e.target.value)}
+                    placeholder="Nama lengkap member"
+                    className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Nomor WhatsApp Member (08... / 62...)
+                  </label>
+                  <input
+                    type="text"
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    placeholder="08xxxxxxxxxx"
+                    className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Email Akun Member yang Di-invite ke Layanan *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={accountEmail}
+                  onChange={(e) => setAccountEmail(e.target.value)}
+                  placeholder="email.member@domain.com"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
+                />
+                
+                {/* Quick Domain Completion Chips */}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  <span className="text-[10px] text-slate-400 font-bold">Auto-complete domain:</span>
+                  {['@gmail.com', '@googlemail.com', '@yahoo.com', '@icloud.com'].map((dom) => (
+                    <button
+                      type="button"
+                      key={dom}
+                      onClick={() => handleApplyEmailDomain(dom)}
+                      className="px-2 py-0.5 rounded-lg bg-slate-200/80 dark:bg-slate-750 hover:bg-blue-600 hover:text-white text-[10px] font-mono text-slate-700 dark:text-slate-300 transition-colors cursor-pointer shadow-2xs"
+                    >
+                      {dom}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Smart Pool / Shared Group Assignment */}
+            <div className="p-4 rounded-2xl bg-slate-100/50 dark:bg-slate-800/30 border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                  <Building className="h-4 w-4 text-blue-500" />
+                  <span>Alokasi Pool / Family Group</span>
+                </div>
+
+                {onOpenAddPoolModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenAddPoolModal}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" /> Buat Pool Baru
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Pilih Pool / Akun Induk
+                  </label>
+                  {pools.length > 0 ? (
+                    <select
+                      value={poolId || ''}
+                      onChange={(e) => handleSelectPool(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
+                    >
+                      <option value="">-- Pilih Pool / Buat Bebas --</option>
+                      {pools.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.totalCapacity} slot • {p.provider})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={poolName}
+                      onChange={(e) => setPoolName(e.target.value)}
+                      placeholder="Contoh: Google One 5TB Pool #1"
+                      className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Nama Layanan / Label Slot *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Contoh: Google One 5TB Family - Slot #1"
+                    className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Connected Pool Master Account Info Banner */}
+              {currentPool && (
+                <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                      <div className="text-xs">
+                        <span className="text-slate-500 dark:text-slate-400">Akun Induk: </span>
+                        <strong className="text-slate-900 dark:text-white font-mono">{currentPool.masterEmail}</strong>
+                        {currentPool.masterEndDate && (
+                          <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold ml-2">
+                            (Exp: {currentPool.masterEndDate})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (memberName) {
+                          setName(`${currentPool.name} - ${memberName}`);
+                        } else {
+                          setName(`${currentPool.name} - Slot Member`);
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] cursor-pointer shrink-0 transition-colors shadow-2xs self-start sm:self-auto"
+                    >
+                      Terapkan Nama Pool ke Slot
+                    </button>
+                  </div>
+
+                  {/* Pool Master Password Row (if present) */}
+                  {currentPool.masterPassword && (
+                    <div className="flex items-center justify-between gap-2 text-xs pt-2 border-t border-blue-200/60 dark:border-blue-900/40">
+                      <div className="flex items-center gap-2 min-w-0 text-slate-600 dark:text-slate-300">
+                        <KeyRound className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">Password Master:</span>
+                        <span className="font-mono font-bold tracking-wider text-[11px] truncate text-slate-900 dark:text-white">
+                          {showPoolPassword ? currentPool.masterPassword : '••••••••••••'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowPoolPassword(!showPoolPassword)}
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          title={showPoolPassword ? "Sembunyikan password" : "Lihat password"}
+                        >
+                          {showPoolPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(currentPool.masterPassword!);
+                            setCopiedPoolPassword(true);
+                            setTimeout(() => setCopiedPoolPassword(false), 2000);
+                          }}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+                          title="Salin Password Master"
+                        >
+                          {copiedPoolPassword ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-amber-500" />}
+                          <span>{copiedPoolPassword ? 'Tersalin' : 'Salin Pass'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Duration Package Quick Selector with Full Pool End Option */}
+            <div className="p-4 rounded-2xl bg-blue-500/5 dark:bg-blue-950/20 border border-blue-500/15 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" /> Pilih Paket Durasi Akses
+                </span>
+                <span className="text-[11px] text-slate-400 font-bold">
+                  Otomatis menghitung tanggal jatuh tempo
+                </span>
+              </div>
+
+              {/* Standard month packages */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {DURATION_PACKAGES.map((pkg) => {
+                  const isActive = activeDurationPackage === pkg.id;
+                  return (
+                    <button
+                      type="button"
+                      key={pkg.id}
+                      onClick={() => handleSelectDurationPackage(pkg)}
+                      className={`py-2 px-2.5 rounded-xl text-center font-black text-xs transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-400/40'
+                          : 'bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      {pkg.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* SPECIAL OPTION: Sampai Akun Google Pool Berakhir */}
+              <button
+                type="button"
+                onClick={handleSelectPoolEnd}
+                className={`w-full py-2.5 px-4 rounded-xl flex items-center justify-between font-bold text-xs transition-all cursor-pointer border ${
+                  activeDurationPackage === 'pool_end'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md shadow-blue-500/25 ring-2 ring-blue-400/40'
+                    : 'bg-blue-500/10 hover:bg-blue-500/15 text-blue-800 dark:text-blue-200 border-blue-500/30'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className={`h-4 w-4 ${activeDurationPackage === 'pool_end' ? 'text-amber-300' : 'text-blue-500'}`} />
+                  <span className="font-black text-xs">Sampai Akun Google Pool Berakhir</span>
+                </div>
+                <div className="text-[11px] font-extrabold flex items-center gap-1.5">
+                  {currentPool?.masterEndDate ? (
+                    <span className={`px-2.5 py-1 rounded-lg ${activeDurationPackage === 'pool_end' ? 'bg-white/20 text-white' : 'bg-blue-600/10 text-blue-600 dark:text-blue-400 font-bold'}`}>
+                      Hingga {formatDateIndo(currentPool.masterEndDate)}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 font-normal">
+                      {pools.length > 0 ? `(Otomatis set ke Pool)` : `(Pilih Pool terlebih dahulu)`}
+                    </span>
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* Row 1: Dates (Ample Horizontal Width) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+              <DatePickerField
+                label="Tanggal Mulai"
+                required
+                variant="start"
+                value={startDate}
+                onChange={handleStartDateChange}
+                quickPresets={[
+                  { label: 'Hari Ini', isToday: true },
+                  { label: '-1 Bln', months: -1 },
+                ]}
+              />
+
+              <DatePickerField
+                label="Tanggal Jatuh Tempo"
+                required
+                variant="expiry"
+                value={endDate}
+                onChange={(val) => {
+                  setEndDate(val);
+                  setActiveDurationPackage('');
+                }}
+                relativeDate={startDate}
+                poolEndDate={currentPool?.masterEndDate}
+                showCalendarSync={!!initialSubscription}
+                subscription={initialSubscription || undefined}
+                quickPresets={[
+                  { label: '+1 Bln', months: 1 },
+                  { label: '+3 Bln', months: 3 },
+                  { label: '+1 Thn', months: 12 },
+                  ...(currentPool?.masterEndDate ? [{ label: 'Pool End', isPoolEnd: true }] : []),
+                ]}
+              />
+            </div>
+
+            {/* Row 2: Pricing & Billing Cycle */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+              <div>
+                <label className="block font-bold text-xs text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Biaya Member (Harga Jual)</span>
+                  </span>
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-black">
+                    {formatCurrency(price, currency)}
+                  </span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-black text-xs">
+                    Rp
+                  </div>
+                  <input
+                    type="text"
+                    value={formatNumberIDR(price)}
+                    onChange={(e) => setPrice(parseCurrencyInput(e.target.value))}
+                    placeholder="35.000"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-extrabold text-sm shadow-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-xs text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Siklus Penagihan</span>
+                </label>
+                <select
+                  value={billingCycle}
+                  onChange={(e) => setBillingCycle(e.target.value as BillingCycle)}
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-bold text-xs shadow-xs"
+                >
+                  <option value="monthly">Bulanan (1 Bulan)</option>
+                  <option value="quarterly">3 Bulan</option>
+                  <option value="semi_annual">6 Bulan</option>
+                  <option value="yearly">Tahunan (1 Tahun)</option>
+                  <option value="custom">Sekali Bayar / Custom</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Admin Kick Checklist Builder */}
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>Checklist Tindakan Admin saat Expired ({checklist.length} aksi):</span>
+                <span className="text-[11px] text-slate-400 font-normal">
+                  Wajib diselesaikan sebelum slot dinyatakan kosong
+                </span>
+              </label>
+
+              <div className="space-y-1.5 mb-2.5">
+                {checklist.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700"
+                  >
+                    <span className="text-slate-800 dark:text-slate-200 leading-snug font-medium">
+                      {idx + 1}. {item.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChecklistItem(item.id)}
+                      className="p-1 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newChecklistText}
+                  onChange={(e) => setNewChecklistText(e.target.value)}
+                  placeholder="+ Tambah checklist aksi kick..."
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddChecklistItem}
+                  className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 font-bold cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Catatan Admin / Detail Pembayaran
+              </label>
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Catatan transfer, bank, atau preferensi member..."
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none"
+              />
+            </div>
+          </form>
+
+          {/* Footer Actions */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div className="text-[11px] text-slate-400">
+              {!initialSubscription && (
+                <span>Ketik form, tersimpan otomatis</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="group flex items-center gap-2 pl-5 pr-1.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <span>{initialSubscription ? 'Perbarui Data Member' : 'Simpan & Monitor Slot'}</span>
+                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center transition-transform group-hover:scale-110">
+                  <Check className="h-3.5 w-3.5 text-white" />
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #f8fafc;
+    --foreground: #090d16;
+    --card: #ffffff;
+    --card-foreground: #090d16;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --muted: #f8fafc;
+    --muted-foreground: #64748b;
+    --border: rgba(226, 232, 240, 0.8);
+    --bezel-outer: rgba(0, 0, 0, 0.04);
+    --bezel-border: rgba(0, 0, 0, 0.07);
+    --radius-outer: 2rem;
+    --radius-inner: calc(2rem - 0.375rem);
+  }
+
+  .dark {
+    --background: #060911;
+    --foreground: #f8fafc;
+    --card: #0d121f;
+    --card-foreground: #f8fafc;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #141c2e;
+    --muted: #141c2e;
+    --muted-foreground: #94a3b8;
+    --border: rgba(255, 255, 255, 0.08);
+    --bezel-outer: rgba(255, 255, 255, 0.03);
+    --bezel-border: rgba(255, 255, 255, 0.09);
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+}
+
+.dark body {
+  background-image: 
+    radial-gradient(at 20% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 60%),
+    radial-gradient(at 80% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 60%),
+    radial-gradient(at 50% 100%, rgba(225, 29, 72, 0.05) 0px, transparent 50%);
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Double-Bezel Hardware Architecture */
+.bezel-shell {
+  background: var(--bezel-outer);
+  border: 1px solid var(--bezel-border);
+  padding: 0.375rem;
+  border-radius: var(--radius-outer);
+  transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bezel-core {
+  background: var(--card);
+  border-radius: var(--radius-inner);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+/* High-End Fluid Easing */
+.ease-fluid {
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Eyebrow Micro-Badge */
+.eyebrow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+/* Native Calendar Input Styling */
+input[type="date"] {
+  position: relative;
+  cursor: pointer;
+  color-scheme: light;
+}
+
+.dark input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  opacity: 0.7;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.15);
+  opacity: 1;
+}
+
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: brightness(1.2);
+}
+
