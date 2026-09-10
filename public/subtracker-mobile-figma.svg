@@ -1,0 +1,390 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 920" width="840" height="920" fill="none">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bg-canvas" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07090E"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="phone-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="100%" stop-color="#050811"/>
+    </linearGradient>
+    <linearGradient id="primary-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="accent-green" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="accent-amber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="card-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="pool-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+
+    <!-- Filters & Shadows -->
+    <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="125%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="phone-shadow" x="-15%" y="-10%" width="130%" height="125%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="25" stdDeviation="30" flood-color="#000000" flood-opacity="0.7"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#38BDF8" flood-opacity="0.15"/>
+    </filter>
+    <filter id="glow-indigo" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Clip Paths for Phone Screens -->
+    <clipPath id="screen-clip-1">
+      <rect x="30" y="40" width="375" height="812" rx="44"/>
+    </clipPath>
+    <clipPath id="screen-clip-2">
+      <rect x="435" y="40" width="375" height="812" rx="44"/>
+    </clipPath>
+  </defs>
+
+  <style>
+    .f-inter { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .title-main { font-weight: 700; font-size: 18px; fill: #FFFFFF; }
+    .title-sub { font-weight: 600; font-size: 14px; fill: #F1F5F9; }
+    .text-muted { font-weight: 400; font-size: 11px; fill: #94A3B8; }
+    .text-xs { font-weight: 500; font-size: 10px; fill: #64748B; }
+    .val-large { font-weight: 700; font-size: 20px; fill: #FFFFFF; }
+    .badge-text { font-weight: 600; font-size: 9px; }
+  </style>
+
+  <!-- Canvas Background -->
+  <rect width="840" height="920" fill="url(#bg-canvas)"/>
+
+  <!-- ================================================================= -->
+  <!-- SCREEN 1: MOBILE DASHBOARD (COMMAND CENTER)                       -->
+  <!-- ================================================================= -->
+  <g id="Screen-Dashboard" transform="translate(0, 0)">
+    <!-- Phone Outer Shell -->
+    <rect x="28" y="38" width="379" height="816" rx="46" fill="#1E293B" stroke="#334155" stroke-width="2" filter="url(#phone-shadow)"/>
+    
+    <!-- Phone Screen Content -->
+    <g clip-path="url(#screen-clip-1)">
+      <!-- Background -->
+      <rect x="30" y="40" width="375" height="812" fill="url(#phone-bg)"/>
+
+      <!-- Ambient Glow Behind Header -->
+      <circle cx="217" cy="110" r="140" fill="#6366F1" opacity="0.12" filter="url(#glow-indigo)"/>
+
+      <!-- Dynamic Island / Status Bar -->
+      <rect x="150" y="52" width="135" height="28" rx="14" fill="#000000"/>
+      <circle cx="265" cy="66" r="4" fill="#10B981"/> <!-- Camera indicator -->
+      <text x="65" y="70" class="f-inter text-xs" fill="#94A3B8">09:41</text>
+      <!-- Battery / Wifi icons mockup -->
+      <path d="M340 64h14v7h-14z" fill="#94A3B8" rx="2"/>
+      <rect x="355" y="66.5" width="1.5" height="2" fill="#94A3B8" rx="0.5"/>
+      <circle cx="328" cy="67.5" r="3" fill="#94A3B8"/>
+
+      <!-- Top Header / Profile -->
+      <g transform="translate(50, 95)">
+        <!-- Avatar Circle -->
+        <circle cx="18" cy="18" r="18" fill="url(#primary-glow)"/>
+        <text x="18" y="23" text-anchor="middle" class="f-inter" font-size="12" font-weight="700" fill="#FFFFFF">GO</text>
+        
+        <text x="46" y="14" class="f-inter text-muted">COMMAND CENTER</text>
+        <text x="46" y="30" class="f-inter title-main">Google One Pro</text>
+
+        <!-- Notification Bell Icon Button -->
+        <rect x="295" y="0" width="36" height="36" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+        <path d="M313 11a5 5 0 0 0-5 5v3l-2 2v1h14v-1l-2-2v-3a5 5 0 0 0-5-5z" fill="#94A3B8"/>
+        <!-- Bell Badge -->
+        <circle cx="326" cy="7" r="5" fill="#EF4444"/>
+        <text x="326" y="9.5" text-anchor="middle" class="f-inter badge-text" fill="#FFFFFF">3</text>
+      </g>
+
+      <!-- Section: Urgent Action Alert Banner -->
+      <g transform="translate(50, 155)">
+        <rect x="0" y="0" width="335" height="62" rx="16" fill="#450A0A" stroke="#EF4444" stroke-width="1" stroke-opacity="0.4"/>
+        <circle cx="28" cy="31" r="14" fill="#EF4444" fill-opacity="0.2"/>
+        <text x="28" y="36" text-anchor="middle" font-size="14" fill="#EF4444">⚠️</text>
+        <text x="52" y="26" class="f-inter title-sub" font-size="12" fill="#FCA5A5">3 Member Perlu Ditindak</text>
+        <text x="52" y="42" class="f-inter text-muted" font-size="10" fill="#FECACA">2 expired kick dari Google Family, 1 grace period</text>
+        <rect x="260" y="18" width="60" height="26" rx="8" fill="#EF4444"/>
+        <text x="290" y="34.5" text-anchor="middle" class="f-inter" font-size="10" font-weight="700" fill="#FFFFFF">Tindak</text>
+      </g>
+
+      <!-- Section: 4 KPI Metrics Grid -->
+      <g transform="translate(50, 230)">
+        <!-- Metric 1: Monthly Revenue (MRR) -->
+        <rect x="0" y="0" width="160" height="84" rx="16" fill="url(#card-grad)" stroke="#334155" stroke-width="1"/>
+        <circle cx="22" cy="22" r="10" fill="#10B981" fill-opacity="0.15"/>
+        <text x="22" y="26" text-anchor="middle" font-size="11" fill="#10B981">💰</text>
+        <text x="40" y="26" class="f-inter text-muted">Est. Omset/Bln</text>
+        <text x="14" y="56" class="f-inter val-large" font-size="17">Rp 4.250.000</text>
+        <text x="14" y="72" class="f-inter text-muted" font-size="9" fill="#10B981">▲ +12% dari bln lalu</text>
+
+        <!-- Metric 2: Active Members -->
+        <rect x="175" y="0" width="160" height="84" rx="16" fill="url(#card-grad)" stroke="#334155" stroke-width="1"/>
+        <circle cx="197" cy="22" r="10" fill="#6366F1" fill-opacity="0.15"/>
+        <text x="197" y="26" text-anchor="middle" font-size="11" fill="#6366F1">👥</text>
+        <text x="215" y="26" class="f-inter text-muted">Member Aktif</text>
+        <text x="189" y="56" class="f-inter val-large" font-size="17">48 Member</text>
+        <text x="189" y="72" class="f-inter text-muted" font-size="9" fill="#94A3B8">Total 10 Pool Akun</text>
+      </g>
+
+      <!-- Section: Active Pools Card -->
+      <g transform="translate(50, 328)">
+        <text x="2" y="14" class="f-inter title-sub">Family Sharing Pools</text>
+        <text x="330" y="14" text-anchor="end" class="f-inter text-muted" fill="#6366F1">Lihat Semua</text>
+
+        <!-- Pool 1: Google One Family 5TB -->
+        <g transform="translate(0, 26)">
+          <rect x="0" y="0" width="335" height="110" rx="18" fill="url(#card-grad)" stroke="#334155" stroke-width="1" filter="url(#card-shadow)"/>
+          
+          <!-- Pool Icon -->
+          <rect x="14" y="14" width="38" height="38" rx="10" fill="#1E3A8A" stroke="#3B82F6" stroke-width="1"/>
+          <text x="33" y="38" text-anchor="middle" font-size="18">☁️</text>
+
+          <!-- Pool Info -->
+          <text x="60" y="27" class="f-inter title-sub" font-size="13">G-One Pool #01 (5TB)</text>
+          <text x="60" y="42" class="f-inter text-muted" font-size="10">master.acc01@gmail.com</text>
+
+          <!-- Status Badge -->
+          <rect x="250" y="14" width="70" height="22" rx="11" fill="#10B981" fill-opacity="0.15" stroke="#10B981" stroke-width="0.8"/>
+          <circle cx="260" cy="25" r="3" fill="#10B981"/>
+          <text x="288" y="28.5" text-anchor="middle" class="f-inter badge-text" fill="#10B981">FULL 5/5</text>
+
+          <!-- Slot Capacity Bar -->
+          <rect x="14" y="66" width="307" height="6" rx="3" fill="#334155"/>
+          <rect x="14" y="66" width="307" height="6" rx="3" fill="url(#accent-green)"/>
+
+          <!-- Slot Details -->
+          <text x="14" y="92" class="f-inter text-muted" font-size="10">Kapasitas Slot:</text>
+          <text x="80" y="92" class="f-inter" font-size="10" font-weight="600" fill="#F1F5F9">5 Terisi / 0 Kosong</text>
+          <text x="320" y="92" text-anchor="end" class="f-inter text-muted" font-size="10">Modal: Rp 70k/th</text>
+        </g>
+
+        <!-- Pool 2: Google One Family 2TB (Available Slot) -->
+        <g transform="translate(0, 146)">
+          <rect x="0" y="0" width="335" height="95" rx="18" fill="url(#card-grad)" stroke="#334155" stroke-width="1"/>
+          <rect x="14" y="14" width="38" height="38" rx="10" fill="#312E81" stroke="#6366F1" stroke-width="1"/>
+          <text x="33" y="38" text-anchor="middle" font-size="18">⚡</text>
+
+          <text x="60" y="27" class="f-inter title-sub" font-size="13">G-One Pool #02 (2TB)</text>
+          <text x="60" y="42" class="f-inter text-muted" font-size="10">master.acc02@gmail.com</text>
+
+          <rect x="245" y="14" width="75" height="22" rx="11" fill="#F59E0B" fill-opacity="0.15" stroke="#F59E0B" stroke-width="0.8"/>
+          <circle cx="255" cy="25" r="3" fill="#F59E0B"/>
+          <text x="286" y="28.5" text-anchor="middle" class="f-inter badge-text" fill="#F59E0B">SISA 1 SLOT</text>
+
+          <!-- Slot Capacity Bar: 4/5 filled -->
+          <rect x="14" y="64" width="307" height="6" rx="3" fill="#334155"/>
+          <rect x="14" y="64" width="245" height="6" rx="3" fill="url(#accent-amber)"/>
+
+          <text x="14" y="84" class="f-inter text-muted" font-size="10">Kapasitas Slot:</text>
+          <text x="80" y="84" class="f-inter" font-size="10" font-weight="600" fill="#F1F5F9">4 Terisi / 1 Kosong Siap Jual</text>
+        </g>
+      </g>
+
+      <!-- Section: Urgent Renewals (WhatsApp Quick Button) -->
+      <g transform="translate(50, 585)">
+        <text x="2" y="14" class="f-inter title-sub">Jatuh Tempo Mendekat (H-3)</text>
+        
+        <g transform="translate(0, 24)">
+          <rect x="0" y="0" width="335" height="68" rx="16" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+          <circle cx="24" cy="34" r="14" fill="#3B82F6" fill-opacity="0.2"/>
+          <text x="24" y="38" text-anchor="middle" font-size="11" fill="#60A5FA">👤</text>
+          
+          <text x="48" y="26" class="f-inter title-sub" font-size="12">Andi Prasetyo</text>
+          <text x="48" y="42" class="f-inter text-muted" font-size="10">Paket 3 Bln • Exp: 12 Sept (2 hari lagi)</text>
+
+          <!-- WhatsApp Button -->
+          <rect x="235" y="18" width="86" height="32" rx="10" fill="#22C55E"/>
+          <text x="278" y="38" text-anchor="middle" class="f-inter" font-size="10" font-weight="700" fill="#FFFFFF">💬 Tagih WA</text>
+        </g>
+      </g>
+
+      <!-- Bottom Glassmorphic Navigation Bar -->
+      <g transform="translate(30, 755)">
+        <!-- Blur Backdrop Simulation -->
+        <rect x="0" y="0" width="375" height="97" fill="#0B0F19" fill-opacity="0.92" stroke="#1E293B" stroke-width="1"/>
+        <line x1="0" y1="0" x2="375" y2="0" stroke="#334155" stroke-width="0.5"/>
+
+        <!-- Tab 1: Dashboard (Active) -->
+        <g transform="translate(38, 12)">
+          <rect x="4" y="0" width="32" height="28" rx="8" fill="#6366F1" fill-opacity="0.2"/>
+          <circle cx="20" cy="14" r="6" fill="#6366F1"/>
+          <text x="20" y="34" text-anchor="middle" class="f-inter" font-size="9" font-weight="700" fill="#6366F1">Home</text>
+        </g>
+
+        <!-- Tab 2: Pools -->
+        <g transform="translate(112, 12)">
+          <circle cx="20" cy="14" r="6" fill="#64748B"/>
+          <text x="20" y="34" text-anchor="middle" class="f-inter" font-size="9" font-weight="500" fill="#64748B">Pools</text>
+        </g>
+
+        <!-- Tab 3: Center FAB (Add Member / Pool) -->
+        <g transform="translate(165, -8)">
+          <circle cx="22" cy="22" r="22" fill="url(#primary-glow)" filter="url(#card-shadow)"/>
+          <text x="22" y="28" text-anchor="middle" font-size="20" font-weight="700" fill="#FFFFFF">+</text>
+        </g>
+
+        <!-- Tab 4: Subscriptions -->
+        <g transform="translate(225, 12)">
+          <circle cx="20" cy="14" r="6" fill="#64748B"/>
+          <text x="20" y="34" text-anchor="middle" class="f-inter" font-size="9" font-weight="500" fill="#64748B">Member</text>
+        </g>
+
+        <!-- Tab 5: Analytics -->
+        <g transform="translate(300, 12)">
+          <circle cx="20" cy="14" r="6" fill="#64748B"/>
+          <text x="20" y="34" text-anchor="middle" class="f-inter" font-size="9" font-weight="500" fill="#64748B">Laba</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- SCREEN 2: POOL SLOTS & MEMBER DETAIL (ACTION VIEW)               -->
+  <!-- ================================================================= -->
+  <g id="Screen-PoolDetails" transform="translate(0, 0)">
+    <!-- Phone Outer Shell -->
+    <rect x="433" y="38" width="379" height="816" rx="46" fill="#1E293B" stroke="#334155" stroke-width="2" filter="url(#phone-shadow)"/>
+    
+    <!-- Phone Screen Content -->
+    <g clip-path="url(#screen-clip-2)">
+      <rect x="435" y="40" width="375" height="812" fill="url(#phone-bg)"/>
+
+      <!-- Ambient Glow Top Right -->
+      <circle cx="750" cy="140" r="130" fill="#3B82F6" opacity="0.12" filter="url(#glow-indigo)"/>
+
+      <!-- Dynamic Island / Status Bar -->
+      <rect x="555" y="52" width="135" height="28" rx="14" fill="#000000"/>
+      <circle cx="670" cy="66" r="4" fill="#10B981"/>
+      <text x="470" y="70" class="f-inter text-xs" fill="#94A3B8">09:41</text>
+      <path d="M745 64h14v7h-14z" fill="#94A3B8" rx="2"/>
+
+      <!-- Top Back Navigation & Title -->
+      <g transform="translate(455, 95)">
+        <rect x="0" y="0" width="36" height="36" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+        <text x="18" y="23" text-anchor="middle" font-size="16" fill="#F1F5F9">‹</text>
+        <text x="48" y="14" class="f-inter text-muted">DETAIL POOL AKUN</text>
+        <text x="48" y="30" class="f-inter title-main">Google One 5TB #01</text>
+        
+        <rect x="295" y="0" width="36" height="36" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+        <text x="313" y="22" text-anchor="middle" font-size="14" fill="#94A3B8">⚙️</text>
+      </g>
+
+      <!-- Master Account Credential Vault Card -->
+      <g transform="translate(455, 155)">
+        <rect x="0" y="0" width="335" height="120" rx="18" fill="url(#card-grad)" stroke="#3B82F6" stroke-width="1" stroke-opacity="0.5"/>
+        
+        <text x="16" y="24" class="f-inter text-muted" font-size="10">AKUN INDUK (FAMILY MANAGER)</text>
+        <text x="16" y="44" class="f-inter title-sub" font-size="14">master.acc01@gmail.com</text>
+        
+        <!-- Password Mask & Copy -->
+        <rect x="16" y="58" width="160" height="26" rx="8" fill="#0B0F19" stroke="#334155" stroke-width="0.8"/>
+        <text x="26" y="75" class="f-inter text-muted" font-size="11">•••••••••••• (Salin)</text>
+        
+        <rect x="185" y="58" width="134" height="26" rx="8" fill="#1E3A8A" stroke="#3B82F6" stroke-width="0.8"/>
+        <text x="252" y="75" text-anchor="middle" class="f-inter text-xs" fill="#93C5FD">2FA: 829104</text>
+
+        <line x1="16" y1="94" x2="319" y2="94" stroke="#334155" stroke-width="0.8"/>
+        <text x="16" y="109" class="f-inter text-muted" font-size="10">Modal Akun: Rp 70.000 / thn</text>
+        <text x="319" y="109" text-anchor="end" class="f-inter" font-size="10" font-weight="600" fill="#10B981">Laba: +Rp 310.000</text>
+      </g>
+
+      <!-- 5 Family Sharing Slots List -->
+      <g transform="translate(455, 295)">
+        <text x="2" y="14" class="f-inter title-sub">Alokasi Slot Member (5 / 5)</text>
+        
+        <!-- Slot #1: Active Member -->
+        <g transform="translate(0, 26)">
+          <rect x="0" y="0" width="335" height="64" rx="14" fill="url(#card-grad)" stroke="#334155" stroke-width="1"/>
+          <circle cx="22" cy="32" r="12" fill="#10B981" fill-opacity="0.2"/>
+          <text x="22" y="36" text-anchor="middle" font-size="9" font-weight="700" fill="#10B981">S1</text>
+          
+          <text x="44" y="24" class="f-inter title-sub" font-size="12">Budi Santoso</text>
+          <text x="44" y="39" class="f-inter text-muted" font-size="10">budi.work@gmail.com</text>
+          <text x="44" y="52" class="f-inter text-xs" fill="#64748B">Paket 1 Thn • Exp: 15 Des 2026</text>
+
+          <rect x="250" y="16" width="70" height="20" rx="6" fill="#10B981" fill-opacity="0.15"/>
+          <text x="285" y="30" text-anchor="middle" class="f-inter badge-text" fill="#10B981">AKTIF</text>
+          <text x="310" y="52" text-anchor="end" class="f-inter text-xs" fill="#94A3B8">Rp 150k</text>
+        </g>
+
+        <!-- Slot #2: Active Member -->
+        <g transform="translate(0, 98)">
+          <rect x="0" y="0" width="335" height="64" rx="14" fill="url(#card-grad)" stroke="#334155" stroke-width="1"/>
+          <circle cx="22" cy="32" r="12" fill="#10B981" fill-opacity="0.2"/>
+          <text x="22" y="36" text-anchor="middle" font-size="9" font-weight="700" fill="#10B981">S2</text>
+          
+          <text x="44" y="24" class="f-inter title-sub" font-size="12">Rina Maulida</text>
+          <text x="44" y="39" class="f-inter text-muted" font-size="10">rinamaul@gmail.com</text>
+          <text x="44" y="52" class="f-inter text-xs" fill="#64748B">Paket 3 Bln • Exp: 28 Okt 2026</text>
+
+          <rect x="250" y="16" width="70" height="20" rx="6" fill="#10B981" fill-opacity="0.15"/>
+          <text x="285" y="30" text-anchor="middle" class="f-inter badge-text" fill="#10B981">AKTIF</text>
+          <text x="310" y="52" text-anchor="end" class="f-inter text-xs" fill="#94A3B8">Rp 60k</text>
+        </g>
+
+        <!-- Slot #3: EXPIRING SOON (Warning) -->
+        <g transform="translate(0, 170)">
+          <rect x="0" y="0" width="335" height="64" rx="14" fill="#451A03" stroke="#F59E0B" stroke-width="1" stroke-opacity="0.5"/>
+          <circle cx="22" cy="32" r="12" fill="#F59E0B" fill-opacity="0.2"/>
+          <text x="22" y="36" text-anchor="middle" font-size="9" font-weight="700" fill="#F59E0B">S3</text>
+          
+          <text x="44" y="24" class="f-inter title-sub" font-size="12" fill="#FDE68A">Andi Prasetyo</text>
+          <text x="44" y="39" class="f-inter text-muted" font-size="10" fill="#FCD34D">andi.design@gmail.com</text>
+          <text x="44" y="52" class="f-inter text-xs" fill="#F59E0B">Exp: 12 Sept (H-2 Jatuh Tempo)</text>
+
+          <rect x="240" y="16" width="80" height="20" rx="6" fill="#F59E0B"/>
+          <text x="280" y="30" text-anchor="middle" class="f-inter badge-text" fill="#000000">H-2 TAGIH</text>
+        </g>
+
+        <!-- Slot #4: EXPIRED (Must Kick) -->
+        <g transform="translate(0, 242)">
+          <rect x="0" y="0" width="335" height="64" rx="14" fill="#450A0A" stroke="#EF4444" stroke-width="1" stroke-opacity="0.5"/>
+          <circle cx="22" cy="32" r="12" fill="#EF4444" fill-opacity="0.2"/>
+          <text x="22" y="36" text-anchor="middle" font-size="9" font-weight="700" fill="#EF4444">S4</text>
+          
+          <text x="44" y="24" class="f-inter title-sub" font-size="12" fill="#FCA5A5">Dimas Wahyu</text>
+          <text x="44" y="39" class="f-inter text-muted" font-size="10" fill="#FECACA">dimas99@gmail.com</text>
+          <text x="44" y="52" class="f-inter text-xs" fill="#EF4444">Expired kemarin • Ghost Access!</text>
+
+          <rect x="240" y="16" width="80" height="22" rx="6" fill="#EF4444"/>
+          <text x="280" y="31" text-anchor="middle" class="f-inter badge-text" fill="#FFFFFF">KICK NOW</text>
+        </g>
+
+        <!-- Slot #5: Active Member -->
+        <g transform="translate(0, 314)">
+          <rect x="0" y="0" width="335" height="64" rx="14" fill="url(#card-grad)" stroke="#334155" stroke-width="1"/>
+          <circle cx="22" cy="32" r="12" fill="#10B981" fill-opacity="0.2"/>
+          <text x="22" y="36" text-anchor="middle" font-size="9" font-weight="700" fill="#10B981">S5</text>
+          
+          <text x="44" y="24" class="f-inter title-sub" font-size="12">Siti Nurhaliza</text>
+          <text x="44" y="39" class="f-inter text-muted" font-size="10">siti.n@gmail.com</text>
+          <text x="44" y="52" class="f-inter text-xs" fill="#64748B">Paket 1 Bln • Exp: 05 Okt 2026</text>
+
+          <rect x="250" y="16" width="70" height="20" rx="6" fill="#10B981" fill-opacity="0.15"/>
+          <text x="285" y="30" text-anchor="middle" class="f-inter badge-text" fill="#10B981">AKTIF</text>
+          <text x="310" y="52" text-anchor="end" class="f-inter text-xs" fill="#94A3B8">Rp 70k</text>
+        </g>
+      </g>
+
+      <!-- Bottom Floating Action Bar -->
+      <g transform="translate(455, 765)">
+        <rect x="0" y="0" width="335" height="50" rx="16" fill="url(#primary-glow)" filter="url(#card-shadow)"/>
+        <text x="167" y="31" text-anchor="middle" class="f-inter" font-size="14" font-weight="700" fill="#FFFFFF">+ Tambah / Ganti Member Slot</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Labels on Bottom Canvas -->
+  <text x="217" y="885" text-anchor="middle" class="f-inter title-main" font-size="15">Layar 1: Mobile Command Center (Home)</text>
+  <text x="622" y="885" text-anchor="middle" class="f-inter title-main" font-size="15">Layar 2: Family Pool &amp; Slot Management</text>
+</svg>

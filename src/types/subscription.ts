@@ -156,3 +156,17 @@ export interface DashboardMetrics {
   roiMultiplier: number;          // Return on Cost Multiplier (e.g. 3.4x)
   currencyBreakdown: Record<CurrencyCode, number>;
 }
+
+export interface VaultItem {
+  id: string;
+  poolId?: string;
+  title: string;
+  serviceProvider: string;
+  accountEmail: string;
+  secretType: 'password' | 'recovery_code' | 'pin' | 'notes';
+  secretValue: string;
+  isEncrypted?: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}

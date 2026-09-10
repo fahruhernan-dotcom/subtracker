@@ -22,7 +22,9 @@ import {
   Trash2,
   RefreshCw,
   BellRing,
-  Send
+  Send,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { AccountPool, Subscription, PricingPackage } from '@/types/subscription';
 import { formatCurrency } from '@/lib/utils';
@@ -56,6 +58,7 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
   const [editingPackage, setEditingPackage] = useState<PricingPackage | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [waTemplateType, setWaTemplateType] = useState<'promo' | 'reminder' | 'activation'>('promo');
+  const [showModalCost, setShowModalCost] = useState<boolean>(false);
 
   // Filter packages by account tier and sort strictly by duration in ascending order
   const primaryPackages = packages
@@ -68,68 +71,89 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
 
   // 1. Template Broadcast Penawaran / Price List Lengkap
   const generatePromoBroadcast = () => {
-    let text = `🔥 *UPGRADE RESMI GOOGLE ONE PRO 5TB FAMILY SHARING* 🔥\n`;
-    text += `Bikin Google Drive, Google Photos, dan Gmail kamu lega tanpa batas! Bebas khawatir memori HP/Laptop penuh.\n\n`;
+    let text = `🚀 *UPGRADE RESMI GOOGLE AI PRO 5TB* 🚀\n`;
+    text += `Dapatkan ekosistem kecerdasan buatan tercanggih dan ruang penyimpanan raksasa 5TB langsung di akun Google Anda.\n\n`;
 
-    text += `⭐ *A. PAKET EMAIL PRIBADI / AKUN UTAMA (GARANSI BISA PERPANJANG ⭐)*\n`;
-    text += `_(🛡️ 100% GARANSI BISA PERPANJANG • Tanpa Ganti Family Group • Bebas Limit 12 Bulan Google • Dialokasikan ke Pool Master 1 Tahun)_\n`;
+    text += `✨ *Keuntungan Utama Paket Google AI Pro 5TB:*\n`;
+    text += `• Ruang Penyimpanan 5 TB untuk Google Drive, Photos, & Gmail\n`;
+    text += `• 1.000 Kredit/Bulan Google Flow (AI Cinematic & Video Creation)\n`;
+    text += `• Gemini 3 Pro Deep Search & Integrasi di Gmail/Docs/Sheets\n`;
+    text += `• YouTube Premium Lite (Bebas Iklan & Putar di Background)\n`;
+    text += `• NotebookLM Enhanced (Kuota 5x Lebih Banyak)\n`;
+    text += `• Akses Prioritas Google AI Studio & Antigravity\n\n`;
+
+    text += `⭐ *PILIHAN PAKET LANGGANAN:* ⭐\n\n`;
+
+    text += `🛡️ *PAKET AKUN UTAMA (100% GARANSI PERPANJANG)*\n`;
+    text += `_(Wajib untuk Email Pribadi/Utama — Tetap di grup master yang sama tanpa ganti akun, bebas limit 12 bulan Google)_\n`;
     primaryPackages.forEach((pkg) => {
+      const ratePerMonth = Math.round(pkg.price / (pkg.durationMonths || 1));
       const isPopularBadge = pkg.isPopular ? ' 🔥 _(Paling Laris)_' : '';
-      const minBadge = pkg.durationMonths === 2 ? ' _(Min. Order)_' : '';
-      const yearBadge = pkg.durationMonths === 12 ? ' _(Hanya Rp 25rb/bln!)_' : '';
-      text += `• ${pkg.durationMonths} Bulan : *${formatCurrency(pkg.price, 'IDR')}*${minBadge}${isPopularBadge}${yearBadge}\n`;
+      const yearBadge = pkg.durationMonths === 12 ? ' _(Paling Hemat!)_' : '';
+      text += `• ${pkg.durationMonths} Bulan : *${formatCurrency(pkg.price, 'IDR')}* _(${formatCurrency(ratePerMonth, 'IDR')}/bln)_${isPopularBadge}${yearBadge}\n`;
     });
 
-    text += `\n📦 *B. PAKET AKUN SEKUNDER / BUKAN EMAIL UTAMA*\n`;
-    text += `_(💡 Khusus email kedua untuk backup foto, video mentah & arsip file dokumen)_\n`;
-    secondaryPackages.forEach((pkg) => {
-      const perBulan = Math.round(pkg.price / pkg.durationMonths);
-      const minBadge = pkg.durationMonths === 2 ? ' _(Min. Order)_' : '';
-      text += `• ${pkg.durationMonths} Bulan : *${formatCurrency(pkg.price, 'IDR')}* _(Setara ${formatCurrency(perBulan, 'IDR')}/bln)_${minBadge}\n`;
-    });
+    if (secondaryPackages.length > 0) {
+      text += `\n📦 *PAKET AKUN SEKUNDER / 2ND (AKUN LEPAS)*\n`;
+      text += `_(Khusus Email Cadangan / Backup Dokumen — Durasi hemat ≤ 4 bulan)_\n`;
+      secondaryPackages.forEach((pkg) => {
+        const ratePerMonth = Math.round(pkg.price / (pkg.durationMonths || 1));
+        text += `• ${pkg.durationMonths} Bulan : *${formatCurrency(pkg.price, 'IDR')}* _(${formatCurrency(ratePerMonth, 'IDR')}/bln)_\n`;
+      });
+      text += `⚠️ _Catatan: Untuk Email Pribadi / Utama wajib mengambil paket minimal 6 bulan agar garansi perpanjangan aktif tanpa ganti akun._\n`;
+    }
 
-    text += `\n✨ *Keunggulan Berlangganan di Kami:*\n`;
-    text += `✅ 100% Legal & Resmi via Google Family Sharing\n`;
-    text += `✅ Data & Foto Pribadi 100% Aman (Tidak bisa dilihat anggota lain)\n`;
-    text += `✅ Tanpa Password akun Anda (Cukup terima email undangan resmi)\n`;
-    text += `✅ Garansi Full selama masa aktif langganan\n`;
-    text += `✅ Proses cepat aktif dalam hitungan menit\n\n`;
+    text += `\n🛡️ *Jaminan Layanan:*\n`;
+    text += `✅ 100% Resmi & Legal (Tanpa minta password akun Anda)\n`;
+    text += `✅ Data & Foto Anda 100% Pribadi & Aman\n`;
+    text += `✅ Garansi Penuh selama masa langganan aktif\n`;
+    text += `✅ Proses cepat aktif dalam beberapa menit\n\n`;
 
     text += `📲 *Format Pemesanan Cepat:*\n`;
     text += `Nama :\n`;
     text += `Email Google :\n`;
-    text += `Pilihan Paket : (Contoh: Akun Utama 3 Bulan)\n\n`;
-    text += `Silakan balas pesan ini untuk langsung kami kirimkan undangan aktif ya! 🙏🚀`;
+    text += `Paket : (Contoh: 6 Bulan Akun Utama / 3 Bulan Akun 2nd)\n\n`;
+    text += `Silakan balas pesan ini untuk langsung kami kirimkan undangan aktivasi ya! 🙏`;
 
     return text;
   };
 
   // 2. Template Reminder Jatuh Tempo & Tagihan Perpanjangan
   const generateReminderTemplate = () => {
-    let text = `Halo kak! 👋\n\n`;
-    text += `Mengingatkan bahwa masa aktif langganan *Google One Pro 5TB Family* kakak akan segera jatuh tempo dalam beberapa hari ke depan.\n\n`;
-    text += `Agar akses penyimpanan Google Drive & Google Photos tidak terputus, yuk segera lakukan perpanjangan dengan pilihan paket:\n\n`;
+    let text = `Halo Kak! 👋\n\n`;
+    text += `Mengingatkan bahwa masa aktif langganan *Google AI Pro 5TB* Anda akan segera berakhir dalam beberapa hari ke depan.\n\n`;
+    text += `Agar akses penyimpanan cloud dan fitur AI tetap aktif tanpa gangguan, silakan lakukan perpanjangan:\n\n`;
 
+    text += `🛡️ *Pilihan Perpanjangan Akun Utama (Garansi Anti Ganti Akun):*\n`;
     primaryPackages.forEach((pkg) => {
-      text += `• ${pkg.durationMonths} Bulan : *${formatCurrency(pkg.price, 'IDR')}* ${pkg.isPopular ? '⭐' : ''}\n`;
+      const ratePerMonth = Math.round(pkg.price / (pkg.durationMonths || 1));
+      const yearBadge = pkg.durationMonths === 12 ? ' ⭐ _(Paling Hemat)_' : '';
+      text += `• ${pkg.durationMonths} Bulan : *${formatCurrency(pkg.price, 'IDR')}* _(${formatCurrency(ratePerMonth, 'IDR')}/bln)_${yearBadge}\n`;
     });
 
-    text += `\n💳 *Metode Pembayaran:* (BCA / Mandiri / BRI / Dana / QRIS)\n\n`;
-    text += `Silakan konfirmasi pilihan paket kakak dengan membalas pesan ini ya. Terima kasih banyak kak! 🙏✨`;
+    if (secondaryPackages.length > 0) {
+      text += `\n📦 *Pilihan Paket Akun Cadangan (2nd / Lepas):*\n`;
+      secondaryPackages.forEach((pkg) => {
+        const ratePerMonth = Math.round(pkg.price / (pkg.durationMonths || 1));
+        text += `• ${pkg.durationMonths} Bulan : *${formatCurrency(pkg.price, 'IDR')}* _(${formatCurrency(ratePerMonth, 'IDR')}/bln)_\n`;
+      });
+    }
+
+    text += `\n💳 *Metode Pembayaran:* BCA, Mandiri, BRI, DANA, atau QRIS\n\n`;
+    text += `Silakan balas pesan ini untuk konfirmasi perpanjangan ya. Terima kasih!`;
     return text;
   };
 
-  // 3. Template Konfirmasi Aktivasi Slot Berhasil
+  // 3. Template Konfirmasi Aktivasi Slot Berhasil (Tinggal Accept)
   const generateActivationTemplate = () => {
-    let text = `Halo kak! 🎉\n\n`;
-    text += `Undangan slot *Google One Pro 5TB Family* telah berhasil kami kirimkan ke email kakak!\n\n`;
-    text += `📌 *Langkah Mudah Mengaktifkan:*\n`;
-    text += `1. Buka aplikasi Gmail atau email masuk Anda.\n`;
-    text += `2. Cari email undangan dari *Google Families*.\n`;
-    text += `3. Klik tombol *'Terima Undangan' / 'Join Family'*.\n`;
-    text += `4. Selesai! Kapasitas Google Drive & Google Photos langsung otomatis bertambah ke 5TB.\n\n`;
-    text += `🛡️ *Catatan Keamanan:* Seluruh file, email, dan foto kakak tetap 100% pribadi dan tidak dapat dilihat oleh siapa pun.\n\n`;
-    text += `Jika ada kendala saat klik terima undangan, langsung kabari kami di sini ya kak. Selamat menikmati storage lega! 🚀`;
+    let text = `Halo Kak! 🎉\n\n`;
+    text += `Aktivasi langganan *Google AI Pro 5TB* untuk akun Anda sudah berhasil kami proses.\n\n`;
+    text += `📌 *Silakan Terima (Accept) Undangan:* \n`;
+    text += `1. Buka email masuk dari Google di Gmail (atau buka link: https://families.google.com/)\n`;
+    text += `2. Klik tombol *'Terima Undangan'* (Accept).\n`;
+    text += `3. Selesai! Kuota 5TB dan seluruh benefit AI otomatis langsung aktif di akun Anda.\n\n`;
+    text += `🛡️ *Privasi Terjamin:* Seluruh file, foto, dan email Anda 100% pribadi dan tidak dapat diakses oleh siapa pun.\n\n`;
+    text += `Kabari kami jika sudah di-accept ya. Terima kasih!`;
     return text;
   };
 
@@ -219,20 +243,20 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
             </h4>
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
               Akun Google hanya diizinkan berpindah Family Group <strong>maksimal 1 kali dalam 12 bulan</strong>. 
-              Gunakan <strong>Paket Email Pribadi (2 Bln Rp 60k / 3 Bln Rp 90k)</strong> dan alokasikan ke <strong>Pool Master 1 Tahun</strong> agar pembeli akun utama bisa terus perpanjang berkali-kali tanpa risiko akun terkunci / harus keluar-masuk family group.
+              Paket <strong>Durasi &gt; 5 Bulan (6 Bln &amp; 12 Bln)</strong> dijual sebagai <strong>Paket Akun Utama (100% Garansi Perpanjang)</strong> yang dialokasikan ke Pool Master 1 Tahun. Sedangkan paket <strong>Durasi &le; 4 Bulan (2 Bln, 3 Bln, 4 Bln)</strong> difokuskan sebagai <strong>Akun Lepas (Khusus Email 2nd)</strong> untuk backup dokumen agar email utama pelanggan terhindar dari limit ganti grup Google.
             </p>
           </div>
         </div>
 
         <div className="text-right shrink-0">
-          <span className="text-[10px] text-slate-400 font-bold block">Rekomendasi Penjualan:</span>
+          <span className="text-[10px] text-slate-400 font-bold block">Rekomendasi Akun Utama:</span>
           <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-            Prioritaskan Paket Email Pribadi ⭐
+            Paket 6 Bulan &amp; 1 Tahun ⭐
           </span>
         </div>
       </div>
 
-      {/* SECTION 1: TIER A - EMAIL PRIBADI / AKUN UTAMA */}
+      {/* SECTION 1: TIER A - AKUN UTAMA (DURASI > 5 BULAN) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
           <div className="flex items-center gap-2">
@@ -242,14 +266,14 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-black text-slate-900 dark:text-white">
-                  Tier A: Paket Email Pribadi / Akun Utama
+                  Tier A: Paket Akun Utama (Durasi &gt; 5 Bulan — 100% Garansi Perpanjang)
                 </h2>
                 <span className="eyebrow-pill bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20 text-[9px] font-black">
-                  🛡️ 100% Garansi Bisa Perpanjang
+                  🛡️ 100% Garansi Perpanjang
                 </span>
               </div>
               <span className="text-[11px] text-slate-400 font-medium">
-                Dialokasikan ke Pool Master 1 Tahun • Garansi Anti Pindah Family Group • Bebas Limit 12 Bulan Google
+                Dialokasikan ke Pool Master 1 Tahun • Garansi Anti Pindah Akun/Grup • Bebas Limit 12 Bulan Google
               </span>
             </div>
           </div>
@@ -310,9 +334,14 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
                           {formatCurrency(pkg.price, 'IDR')}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 block font-medium mt-0.5">
-                        Setara {formatCurrency(ratePerMonth, 'IDR')} / bulan
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px] ring-1 ring-emerald-500/20">
+                          {formatCurrency(ratePerMonth, 'IDR')} / bln
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          ({pkg.durationMonths} Bulan)
+                        </span>
+                      </div>
                     </div>
 
                     {pkg.description && (
@@ -343,7 +372,7 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
                       durationMonths: pkg.durationMonths,
                       billingCycle: pkg.billingCycle,
                       price: pkg.price,
-                      notes: `Paket Email Utama (Tier A). Alokasikan ke Pool Master 1 Tahun.`,
+                      notes: `Paket Akun Utama (>5 Bulan - 100% Garansi Perpanjang). Alokasikan ke Pool Master 1 Tahun.`,
                     })}
                     className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       pkg.isPopular
@@ -361,7 +390,7 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
         </div>
       </div>
 
-      {/* SECTION 2: TIER B - AKUN SEKUNDER / CADANGAN */}
+      {/* SECTION 2: TIER B - AKUN SEKUNDER / 2ND (DURASI <= 4 BULAN) */}
       <div className="space-y-4 pt-4">
         <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
           <div className="flex items-center gap-2">
@@ -369,11 +398,16 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
               📦
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-white">
-                Tier B: Paket Akun Sekunder / Bukan Email Utama (Hemat)
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-slate-900 dark:text-white">
+                  Tier B: Paket Akun Sekunder / 2nd (Durasi &le; 4 Bulan — Akun Lepas &amp; Backup)
+                </h2>
+                <span className="eyebrow-pill bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20 text-[9px] font-black">
+                  📦 Akun Lepas (2nd)
+                </span>
+              </div>
               <span className="text-[11px] text-slate-400 font-medium">
-                Khusus untuk email kedua / backup storage dokumen • Harga lebih hemat • Fleksibel alokasi pool
+                Khusus untuk email cadangan / backup storage dokumen • Sistem lepas tanpa garansi perpanjang di grup yang sama
               </span>
             </div>
           </div>
@@ -429,9 +463,14 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
                           {formatCurrency(pkg.price, 'IDR')}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 block font-medium mt-0.5">
-                        Setara {formatCurrency(ratePerMonth, 'IDR')} / bulan
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold text-[11px] ring-1 ring-blue-500/20">
+                          {formatCurrency(ratePerMonth, 'IDR')} / bln
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          ({pkg.durationMonths} Bulan)
+                        </span>
+                      </div>
                     </div>
 
                     {pkg.description && (
@@ -457,12 +496,12 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onSelectPackageForMember({
-                      packageName: `Google One 5TB - ${pkg.name} (Akun Sekunder)`,
+                      packageName: `Google One 5TB - ${pkg.name} (Akun Lepas 2nd)`,
                       accountType: 'SECONDARY_EMAIL',
                       durationMonths: pkg.durationMonths,
                       billingCycle: pkg.billingCycle,
                       price: pkg.price,
-                      notes: `Paket Akun Sekunder (Tier B). Khusus email cadangan.`,
+                      notes: `Paket Akun Lepas (≤4 Bulan - Khusus Email 2nd). Tidak dijamin perpanjang di grup yang sama.`,
                     })}
                     className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
@@ -533,9 +572,19 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
                   </div>
 
                   <div className="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                    <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block">Modal Pool ({durationMultiplier} Bln)</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block">Modal Pool ({durationMultiplier} Bln)</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowModalCost(!showModalCost)}
+                        className="p-0.5 rounded text-rose-400 hover:text-rose-600 dark:hover:text-rose-200 transition-colors cursor-pointer"
+                        title={showModalCost ? "Sembunyikan modal pool" : "Lihat modal pool"}
+                      >
+                        {showModalCost ? <EyeOff className="h-3 w-3 text-rose-500" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    </div>
                     <span className="font-mono font-black text-rose-600 dark:text-rose-400 text-base">
-                      -{formatCurrency(simModalPeriod, 'IDR')}
+                      {showModalCost ? `-${formatCurrency(simModalPeriod, 'IDR')}` : '-Rp ••••••'}
                     </span>
                   </div>
 

@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, parseISO, differenceInCalendarDays, addDays, addMonths, addYears } from "date-fns";
-import { CurrencyCode, SubscriptionStatus } from "@/types/subscription";
+import { BillingCycle, CurrencyCode, SubscriptionStatus } from "@/types/subscription";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -249,5 +249,106 @@ export function getCategoryColor(catOrProvider: string): string {
   const key = catOrProvider.toLowerCase().trim();
   if (CATEGORY_DISPLAY_MAP[key]) return CATEGORY_DISPLAY_MAP[key].color;
   return '#3b82f6';
+}
+
+/**
+ * Konversi billingCycle menjadi total bulan (contoh: quarterly -> 3 bulan)
+ */
+export function getBillingCycleMonths(cycle: BillingCycle | string | number): number {
+  if (typeof cycle === 'number') return cycle > 0 ? cycle : 1;
+  if (typeof cycle === 'string') {
+    const parsed = parseInt(cycle, 10);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  switch (cycle) {
+    case 'quarterly':
+      return 3;
+    case 'semi_annual':
+      return 6;
+    case 'yearly':
+      return 12;
+    case 'monthly':
+    default:
+      return 1;
+  }
+}
+
+/**
+ * Label Bahasa Indonesia untuk siklus tagihan
+ */
+export function getCycleLabel(cycle: BillingCycle | string): string {
+  switch (cycle) {
+    case 'yearly':
+      return '1 Tahun';
+    case 'quarterly':
+      return '3 Bulan';
+    case 'semi_annual':
+      return '6 Bulan';
+    case 'custom':
+      return 'Custom';
+    case 'monthly':
+    default:
+      return '1 Bulan';
+  }
+}
+
+/**
+ * Hitung nilai setara per bulan (contoh: Rp 90.000 / 3 bulan = Rp 30.000/bln)
+ */
+export function getMonthlyEquivalent(price: number, cycleOrMonths: BillingCycle | string | number): number {
+  if (!price || price <= 0) return 0;
+  const months = getBillingCycleMonths(cycleOrMonths);
+  return Math.round(price / months);
+}
+
+/**
+ * Format string harga per bulan (contoh: "Rp 30.000/bln")
+ */
+export function formatMonthlyRate(
+  price: number, 
+  cycleOrMonths: BillingCycle | string | number, 
+  currency: CurrencyCode = 'IDR'
+): string {
+  const monthly = getMonthlyEquivalent(price, cycleOrMonths);
+  return `${formatCurrency(monthly, currency)}/bln`;
+}
+
+/**
+ * Logika Penentuan Tier Garansi:
+ * - Durasi > 5 Bulan (6m, 12m): Akun Utama (100% Garansi Perpanjang, tetap di grup sama)
+ * - Durasi <= 4 Bulan (1m, 2m, 3m, 4m): Akun Lepas (Khusus Email 2nd / Cadangan)
+ */
+export function getWarrantyInfo(durationMonthsOrCycle: number | BillingCycle | string): {
+  tier: 'PRIMARY_GUARANTEED' | 'SECONDARY_LEPAS';
+  label: string;
+  shortBadge: string;
+  badgeClass: string;
+  isGuaranteed: boolean;
+  targetAccountLabel: string;
+  description: string;
+} {
+  const months = getBillingCycleMonths(durationMonthsOrCycle);
+
+  if (months > 5) {
+    return {
+      tier: 'PRIMARY_GUARANTEED',
+      label: 'Garansi Perpanjang (Akun Utama)',
+      shortBadge: '🛡️ Garansi Perpanjang',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20',
+      isGuaranteed: true,
+      targetAccountLabel: 'Akun Utama / Pribadi',
+      description: '100% Garansi bisa diperpanjang di akun utama & tetap di grup master yang sama tanpa risiko limit Google.'
+    };
+  }
+
+  return {
+    tier: 'SECONDARY_LEPAS',
+    label: 'Akun Lepas (Khusus Email 2nd)',
+    shortBadge: '📦 Akun Lepas (2nd)',
+    badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20',
+    isGuaranteed: false,
+    targetAccountLabel: 'Email Sekunder / Backup',
+    description: 'Sistem akun lepas untuk email cadangan. Tidak disarankan untuk email utama demi mencegah limit Google 12 bulan.'
+  };
 }
 

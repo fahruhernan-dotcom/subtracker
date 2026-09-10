@@ -8,7 +8,9 @@ import {
   Clock, 
   CheckCircle2, 
   Search,
-  Building
+  Building,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { AccountPool, Subscription } from '@/types/subscription';
 import { PoolCard } from './PoolCard';
@@ -37,6 +39,7 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [showAllModalCost, setShowAllModalCost] = useState<boolean>(false);
 
   // Compute Pool Metrics
   const poolMetrics = useMemo(() => {
@@ -202,6 +205,17 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Privacy Eye Toggle for Master Cost */}
+          <button
+            type="button"
+            onClick={() => setShowAllModalCost(!showAllModalCost)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-xs cursor-pointer"
+            title={showAllModalCost ? "Sembunyikan modal akun induk" : "Lihat modal akun induk"}
+          >
+            {showAllModalCost ? <EyeOff className="h-3.5 w-3.5 text-rose-500" /> : <Eye className="h-3.5 w-3.5 text-slate-400" />}
+            <span className="hidden sm:inline">{showAllModalCost ? 'Sembunyikan Modal' : 'Lihat Modal'}</span>
+          </button>
+
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -254,6 +268,7 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
               onRequestDeletePool={onRequestDeletePool}
               onOpenWhatsAppModal={onOpenWhatsAppModal}
               onOpenMemberChecklist={onOpenMemberChecklist}
+              showModalCostByDefault={showAllModalCost}
             />
           ))}
         </div>

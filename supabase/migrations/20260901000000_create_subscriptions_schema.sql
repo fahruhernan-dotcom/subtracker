@@ -62,3 +62,46 @@ WITH CHECK (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON public.subscriptions(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_end_date ON public.subscriptions(end_date);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_user_timestamp ON public.activity_logs(user_id, timestamp DESC);
+
+-- 5. Create Pools & Credential Vault Tables
+CREATE TABLE IF NOT EXISTS public.pools (
+    id TEXT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    provider VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL DEFAULT 'other',
+    master_email VARCHAR(255) NOT NULL,
+    total_capacity INT NOT NULL DEFAULT 5,
+    master_end_date DATE NOT NULL,
+    master_cost NUMERIC(12, 2) DEFAULT 0,
+    master_password TEXT,
+    notes TEXT,
+    avatar_color VARCHAR(50) DEFAULT 'bg-blue-600',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.credential_vault (
+    id TEXT PRIMARY KEY,
+    pool_id TEXT REFERENCES public.pools(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    service_provider VARCHAR(255) NOT NULL DEFAULT 'Google One',
+    account_email VARCHAR(255) NOT NULL,
+    secret_type VARCHAR(50) NOT NULL DEFAULT 'password',
+    secret_value TEXT NOT NULL,
+    is_encrypted BOOLEAN NOT NULL DEFAULT TRUE,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.pools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.credential_vault ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Enable all operations for anon on pools" ON public.pools;
+CREATE POLICY "Enable all operations for anon on pools" ON public.pools FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Enable all operations for anon on credential_vault" ON public.credential_vault;
+CREATE POLICY "Enable all operations for anon on credential_vault" ON public.credential_vault FOR ALL USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_pools_master_end_date ON public.pools(master_end_date);
+CREATE INDEX IF NOT EXISTS idx_credential_vault_pool_id ON public.credential_vault(pool_id);

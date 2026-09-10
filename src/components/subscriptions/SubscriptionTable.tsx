@@ -10,7 +10,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
-import { formatDate, formatCurrency, getDaysLeftLabel } from '@/lib/utils';
+import { formatDate, formatCurrency, getDaysLeftLabel, getMonthlyEquivalent, getWarrantyInfo } from '@/lib/utils';
 import { generateGoogleCalendarUrl } from '@/lib/calendar';
 
 interface SubscriptionTableProps {
@@ -51,6 +51,7 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
             {subscriptions.map((sub) => {
               const badge = getDaysLeftLabel(sub.endDate, sub.status);
+              const warranty = getWarrantyInfo(sub.billingCycle);
               const completedCount = sub.checklist.filter(i => i.completed).length;
               const totalCount = sub.checklist.length;
 
@@ -69,8 +70,13 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
                         <div className="font-extrabold text-slate-900 dark:text-white">
                           {sub.memberName || 'Member'}
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          {sub.name}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-400">
+                            {sub.name}
+                          </span>
+                          <span className={`eyebrow-pill text-[8px] py-0 px-1.5 ring-1 ${warranty.badgeClass}`}>
+                            {warranty.shortBadge}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -116,7 +122,12 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
 
                   {/* Price */}
                   <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white">
-                    {formatCurrency(sub.price, sub.currency)}
+                    <div>{formatCurrency(sub.price, sub.currency)}</div>
+                    {sub.billingCycle !== 'monthly' && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block whitespace-nowrap">
+                        ~{formatCurrency(getMonthlyEquivalent(sub.price, sub.billingCycle), sub.currency)}/bln
+                      </span>
+                    )}
                   </td>
 
                   {/* Checklist */}

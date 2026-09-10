@@ -12,7 +12,7 @@ import {
   Send
 } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
-import { getDaysRemaining, formatCurrency } from '@/lib/utils';
+import { getDaysRemaining, formatCurrency, getCycleLabel, getMonthlyEquivalent } from '@/lib/utils';
 
 interface ActionInboxBannerProps {
   urgentSubscriptions: Subscription[];
@@ -117,11 +117,18 @@ export const ActionInboxBanner: React.FC<ActionInboxBannerProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-center">
-                    <span className="text-base font-black text-slate-900 dark:text-white">
-                      {formatCurrency(sub.price, sub.currency)}
-                    </span>
-                    <span className="text-xs text-slate-400 font-semibold">/{sub.billingCycle}</span>
+                  <div className="flex flex-col items-end self-end sm:self-center">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-base font-black text-slate-900 dark:text-white">
+                        {formatCurrency(sub.price, sub.currency)}
+                      </span>
+                      <span className="text-xs text-slate-400 font-semibold">/{getCycleLabel(sub.billingCycle)}</span>
+                    </div>
+                    {sub.billingCycle !== 'monthly' && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                        ~{formatCurrency(getMonthlyEquivalent(sub.price, sub.billingCycle), sub.currency)}/bln
+                      </span>
+                    )}
                   </div>
                 </div>
 

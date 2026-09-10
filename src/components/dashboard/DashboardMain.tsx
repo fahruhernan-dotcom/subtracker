@@ -27,6 +27,7 @@ import {
 } from '@/lib/lifecycle/state-engine';
 import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar, NavTab } from '@/components/layout/Sidebar';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { MetricsSummary } from '@/components/dashboard/MetricsSummary';
 import { ActionInboxBanner } from '@/components/dashboard/ActionInboxBanner';
 import { UpcomingRenewalsSidebar } from '@/components/dashboard/UpcomingRenewalsSidebar';
@@ -42,6 +43,7 @@ import { NotificationCenterDrawer } from '@/components/subscriptions/Notificatio
 import { ExportImportModal } from '@/components/subscriptions/ExportImportModal';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { PoolsView } from '@/components/pools/PoolsView';
+import { savePoolToVault, deleteFromVault } from '@/lib/vault/vault-manager';
 import { AddEditPoolModal } from '@/components/pools/AddEditPoolModal';
 import { GoogleCalendarSyncModal } from '@/components/calendar/GoogleCalendarSyncModal';
 import { FinancialAnalyticsView } from '@/components/dashboard/FinancialAnalyticsView';
@@ -328,12 +330,15 @@ export default function DashboardMain() {
       };
 
       await db.pools.put(updatedPool);
+      if (updatedPool.masterPassword) {
+        await savePoolToVault(updatedPool);
+      }
       await logActivity(
         editId,
         updatedPool.name,
         undefined,
         'POOL_UPDATED',
-        `Memperbarui data akun induk / pool ${updatedPool.name}`
+        `Memperbarui data akun induk / pool ${updatedPool.name} (Kredensial tersimpan di Vault)`
       );
     } else {
       const newPool: AccountPool = {
@@ -344,12 +349,15 @@ export default function DashboardMain() {
       };
 
       await db.pools.add(newPool);
+      if (newPool.masterPassword) {
+        await savePoolToVault(newPool);
+      }
       await logActivity(
         newPool.id,
         newPool.name,
         undefined,
         'POOL_CREATED',
-        `Mendaftarkan pool akun induk baru ${newPool.name} (Kapasitas: ${newPool.totalCapacity} slot)`
+        `Mendaftarkan pool akun induk baru ${newPool.name} (Kapasitas: ${newPool.totalCapacity} slot, Kredensial tersimpan di Vault)`
       );
     }
 
@@ -369,6 +377,7 @@ export default function DashboardMain() {
       variant: 'danger',
       onConfirmAction: async () => {
         await db.pools.delete(pool.id);
+        await deleteFromVault(pool.id);
         // detach pool from attached members
         for (const m of attachedMembers) {
           await db.subscriptions.update(m.id, { poolId: undefined, poolName: undefined });
@@ -666,7 +675,7 @@ export default function DashboardMain() {
         />
 
         {/* Dynamic Main Body per Tab */}
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto space-y-8">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6 md:space-y-8 pb-28 md:pb-12">
           {/* TAB 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
             <div className="space-y-8">
@@ -1121,6 +1130,18 @@ export default function DashboardMain() {
         variant={confirmDialog.variant}
         onConfirm={confirmDialog.onConfirmAction}
         onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Mobile Glassmorphic Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        needActionCount={metrics.needActionCount}
+        onQuickAdd={() => {
+          setEditingSub(null);
+          setPreselectedPool(null);
+          setIsAddEditOpen(true);
+        }}
       />
     </div>
   );

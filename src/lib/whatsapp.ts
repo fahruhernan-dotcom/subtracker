@@ -1,73 +1,122 @@
 import { Subscription } from '@/types/subscription';
 import { formatDate, formatCurrency, getDaysRemaining } from '@/lib/utils';
 
+export function getCleanServiceName(sub: Subscription): string {
+  let name = sub.provider && sub.provider.toLowerCase() !== 'other'
+    ? sub.provider
+    : sub.name.split(' - ')[0]?.trim() || sub.name;
+
+  // Hapus kata 'family', 'sharing', 'group', 'seat' agar tidak membuat pelanggan bingung/ragu
+  name = name.replace(/\b(family|sharing|group|seat)\b/gi, '').replace(/\s+/g, ' ').trim();
+  return name || 'Google AI Pro 5TB';
+}
+
+export function getClientFirstName(name?: string): string {
+  if (!name) return 'Kak';
+  const first = name.trim().split(/\s+/)[0];
+  return `Kak ${first}`;
+}
+
 export function generateWhatsAppReminderText(sub: Subscription): string {
   const daysLeft = getDaysRemaining(sub.endDate);
   const formattedEndDate = formatDate(sub.endDate);
-  const greeting = `Halo Kak ${sub.memberName || 'Pelanggan'}! 👋`;
+  const serviceName = getCleanServiceName(sub);
+  const clientGreeting = getClientFirstName(sub.memberName);
 
+  const packageOptionsText = `🛡️ *Paket Akun Utama (Garansi Perpanjang):*
+• 6 Bulan : Rp 170.000 (Rp 28.300/bln)
+• 12 Bulan : Rp 300.000 (Rp 25.000/bln - Paling Hemat)
+
+📦 *Paket Akun 2nd / Lepas:*
+• 3 Bulan : Rp 90.000 (Rp 30.000/bln)`;
+
+  // 1. KASUS SUDAH EXPIRED (LEWAT JATUH TEMPO)
   if (daysLeft < 0) {
-    return `${greeting}
+    const overdueDays = Math.abs(daysLeft);
+    return `Halo ${clientGreeting},
 
-Masa aktif layanan *${sub.name}* untuk akun *${sub.accountEmail}* telah *berakhir pada ${formattedEndDate}* (${Math.abs(daysLeft)} hari lalu).
+Masa aktif langganan *${serviceName}* untuk akun *${sub.accountEmail}* telah *berakhir* pada ${formattedEndDate}${overdueDays > 1 ? ` (${overdueDays} hari lalu)` : ''}.
 
-⚠️ Karena belum ada konfirmasi pembayaran, akses Google One Family Sharing akan segera dinonaktifkan secara bertahap.
+Mohon konfirmasi jika ingin melanjutkan agar akses penyimpanan tidak terputus dan slot tidak dialihkan ke member lain:
 
-🛡️ *100% GARANSI BISA PERPANJANG DI AKUN UTAMA / PRIBADI ANDA*
-_(Tetap di Family Group yang sama tanpa ganti akun, aman dari limit 12 bulan Google!)_
+${packageOptionsText}
 
-Pilihan Paket Perpanjangan Akun Utama:
-• 2 Bulan : *Rp 60.000*
-• 3 Bulan : *Rp 90.000* ⭐ _(Paling Laris)_
-• 4 Bulan : *Rp 120.000*
-• 6 Bulan : *Rp 170.000*
-• 12 Bulan : *Rp 300.000* _(Hanya Rp 25rb/bln)_
+Pembayaran: BCA, Mandiri, BRI, DANA, atau QRIS.
 
-💳 *Metode Pembayaran:* (BCA / Mandiri / BRI / Dana / QRIS)
-
-Silakan balas pesan ini untuk konfirmasi perpanjangan agar slot tidak dialihkan ke member lain ya kak. Terima kasih banyak! 🙏✨`;
+Silakan balas pesan ini untuk perpanjangan. Terima kasih!`;
   }
 
+  // 2. KASUS JATUH TEMPO HARI H
   if (daysLeft === 0) {
-    return `${greeting}
+    return `Halo ${clientGreeting},
 
-Mengingatkan bahwa masa aktif langganan *${sub.name}* untuk akun *${sub.accountEmail}* *berakhir HARI INI* (${formattedEndDate}).
+Masa aktif langganan *${serviceName}* untuk akun *${sub.accountEmail}* *berakhir hari ini* (${formattedEndDate}).
 
-Agar penyimpanan Google Drive, Gmail & Google Photos tidak terputus, yuk segera lakukan perpanjangan.
+Agar akses penyimpanan Google Drive & Photos tidak terputus, mohon konfirmasi perpanjangan hari ini:
 
-🛡️ *100% GARANSI BISA PERPANJANG DI AKUN UTAMA / PRIBADI ANDA*
-_(Tetap di Family Group yang sama tanpa ganti akun, aman dari limit 12 bulan Google!)_
+${packageOptionsText}
 
-Pilihan Paket Perpanjangan Akun Utama:
-• 2 Bulan : *Rp 60.000*
-• 3 Bulan : *Rp 90.000* ⭐ _(Paling Laris)_
-• 4 Bulan : *Rp 120.000*
-• 6 Bulan : *Rp 170.000*
-• 12 Bulan : *Rp 300.000* _(Hanya Rp 25rb/bln)_
+Pembayaran: BCA, Mandiri, BRI, DANA, atau QRIS.
 
-💳 *Metode Pembayaran:* (BCA / Mandiri / BRI / Dana / QRIS)
-
-Silakan balas pesan ini untuk konfirmasi pilihan paket kakak ya. Terima kasih banyak kak! 🙏✨`;
+Silakan balas pesan ini untuk konfirmasi perpanjangan. Terima kasih!`;
   }
 
-  return `${greeting}
+  // 3. KASUS MENDEKATI JATUH TEMPO (H-1 s/d H-7)
+  if (daysLeft <= 7) {
+    return `Halo ${clientGreeting},
 
-Mengingatkan bahwa masa aktif langganan *${sub.name}* untuk akun *${sub.accountEmail}* akan segera jatuh tempo dalam *${daysLeft} hari lagi* (pada tanggal ${formattedEndDate}).
+Meningatkan bahwa langganan *${serviceName}* untuk akun *${sub.accountEmail}* akan berakhir dalam *${daysLeft} hari* (pada ${formattedEndDate}).
 
-Agar akses penyimpanan Google Drive & Google Photos tidak terputus, yuk segera lakukan perpanjangan dengan pilihan paket:
+Agar penyimpanan Drive & Photos tetap aktif tanpa gangguan, silakan lakukan perpanjangan:
 
-🛡️ *100% GARANSI BISA PERPANJANG DI AKUN UTAMA / PRIBADI ANDA*
-_(Tetap di Family Group yang sama tanpa ganti akun, bebas limit 12 bulan Google!)_
+${packageOptionsText}
 
-• 2 Bulan : *Rp 60.000*
-• 3 Bulan : *Rp 90.000* ⭐ _(Paling Laris)_
-• 4 Bulan : *Rp 120.000*
-• 6 Bulan : *Rp 170.000*
-• 12 Bulan : *Rp 300.000* _(Hanya Rp 25rb/bln)_
+Pembayaran: BCA, Mandiri, BRI, DANA, atau QRIS.
 
-💳 *Metode Pembayaran:* (BCA / Mandiri / BRI / Dana / QRIS)
+Silakan balas pesan ini untuk konfirmasi perpanjangan. Terima kasih!`;
+  }
 
-Silakan konfirmasi pilihan paket kakak dengan membalas pesan ini ya. Terima kasih banyak kak! 🙏✨`;
+  // 4. KASUS INFORMASI STATUS / JATUH TEMPO MASIH LAMA (> 7 HARI)
+  return `Halo ${clientGreeting},
+
+Informasi masa aktif langganan *${serviceName}* untuk akun *${sub.accountEmail}* saat ini aktif hingga *${formattedEndDate}* (${daysLeft} Hari Lagi).
+
+Jika Anda ingin melakukan perpanjangan lebih awal, berikut opsi paket yang tersedia:
+
+${packageOptionsText}
+
+Pembayaran: BCA, Mandiri, BRI, DANA, atau QRIS.
+
+Silakan balas pesan ini jika membutuhkan bantuan atau ingin perpanjangan. Terima kasih!`;
+}
+
+// 5. TEMPLATE AKTIVASI BARU (TINGGAL ACCEPT, TANPA KATA FAMILY)
+export function generateWhatsAppActivationText(sub: Subscription): string {
+  const daysLeft = getDaysRemaining(sub.endDate);
+  const formattedEndDate = formatDate(sub.endDate);
+  const serviceName = getCleanServiceName(sub);
+  const clientGreeting = getClientFirstName(sub.memberName);
+
+  const countdownText = daysLeft > 0 
+    ? ` (${daysLeft} Hari Lagi)` 
+    : daysLeft === 0 
+      ? ' (Hari Ini)' 
+      : '';
+
+  return `Halo ${clientGreeting},
+
+Aktivasi *${serviceName}* untuk akun *${sub.accountEmail}* sudah kami proses.
+
+Silakan terima (accept) undangannya agar kuota langsung aktif di akun Anda:
+
+1. Buka email masuk dari Google di Gmail (atau klik https://families.google.com/)
+2. Klik tombol *"Terima Undangan"* (Accept)
+
+Setelah di-accept, kuota penyimpanan Anda otomatis langsung aktif.
+
+Masa aktif hingga: *${formattedEndDate}*${countdownText}.
+
+Kabari kami jika sudah ya. Terima kasih!`;
 }
 
 export function formatWhatsAppUrl(phoneNumber?: string, messageText?: string): string {
@@ -83,3 +132,4 @@ export function formatWhatsAppUrl(phoneNumber?: string, messageText?: string): s
   const encodedMsg = encodeURIComponent(messageText || '');
   return `https://wa.me/${cleanNumber}?text=${encodedMsg}`;
 }
+

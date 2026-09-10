@@ -26,7 +26,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Subscription, ActivityLog } from '@/types/subscription';
-import { formatDate, formatCurrency, getDaysLeftLabel } from '@/lib/utils';
+import { formatDate, formatCurrency, getDaysLeftLabel, getMonthlyEquivalent, getWarrantyInfo } from '@/lib/utils';
 import { downloadIcsFile, generateGoogleCalendarUrl } from '@/lib/calendar';
 
 interface SubscriptionCardProps {
@@ -55,6 +55,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const [copiedEmail, setCopiedEmail] = useState(false);
 
   const badge = getDaysLeftLabel(sub.endDate, sub.status);
+  const warranty = getWarrantyInfo(sub.billingCycle);
   const completedTasks = sub.checklist.filter(c => c.completed).length;
   const totalTasks = sub.checklist.length;
   const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 100;
@@ -109,6 +110,9 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     {sub.poolName}
                   </span>
                 )}
+                <span className={`eyebrow-pill text-[9px] py-0 px-1.5 ring-1 ${warranty.badgeClass}`}>
+                  {warranty.shortBadge}
+                </span>
               </div>
               <h3 className="text-sm font-black text-slate-900 dark:text-white truncate mt-0.5" title={sub.memberName || sub.name}>
                 {sub.memberName || sub.name}
@@ -163,6 +167,11 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 / {getCycleLabel(sub.billingCycle)}
               </span>
             </div>
+            {sub.billingCycle !== 'monthly' && (
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                ~{formatCurrency(getMonthlyEquivalent(sub.price, sub.billingCycle), sub.currency)}/bln
+              </span>
+            )}
           </div>
 
           <div className="text-right">

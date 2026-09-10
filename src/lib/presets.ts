@@ -17,8 +17,8 @@ export interface PresetService {
 
 export const PRESET_SERVICES: PresetService[] = [
   {
-    name: "Google One 5TB Family Sharing",
-    provider: "Google One",
+    name: "Google AI Pro 5TB",
+    provider: "Google AI Pro",
     category: "google_one",
     defaultPrice: 35000,
     defaultCurrency: "IDR",
@@ -26,10 +26,10 @@ export const PRESET_SERVICES: PresetService[] = [
     brandColor: "bg-blue-600",
     textColor: "text-blue-500",
     logoLetter: "G",
-    defaultPoolPrefix: "Google One 5TB Family Pool #1",
+    defaultPoolPrefix: "Google AI Pro 5TB Pool #1",
     defaultChecklist: [
-      "Kirim WhatsApp pengingat perpanjangan ke member",
-      "Buka families.google.com & Cabut / Kick email member dari Family Group",
+      "Kirim WhatsApp link accept undangan ke member",
+      "Buka families.google.com & Cabut akses email member jika expired",
       "Pastikan kuota storage kembali ke akun utama admin",
       "Tandai slot siap dijual / dialokasikan ke member baru"
     ],

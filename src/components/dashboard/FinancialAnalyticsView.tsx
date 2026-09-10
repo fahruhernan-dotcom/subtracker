@@ -26,7 +26,9 @@ import {
   Calendar,
   Clock,
   ArrowRight,
-  Receipt
+  Receipt,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface FinancialAnalyticsViewProps {
@@ -42,6 +44,7 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
 }) => {
   const [period, setPeriod] = useState<'actual' | 'monthly' | 'yearly'>('actual');
   const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null);
+  const [showModalCost, setShowModalCost] = useState<boolean>(false);
 
   // Helper to normalize subscription monthly price
   const getSubMonthlyRate = (sub: Subscription) => {
@@ -166,41 +169,96 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
           </p>
         </div>
 
-        {/* 3-Way Mode Switcher Tabs */}
-        <div className="flex items-center p-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 self-start sm:self-auto">
+        {/* 3-Way Mode Switcher Tabs + Privacy Eye Toggle */}
+        <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto flex-wrap">
+          {/* Privacy Eye Toggle for Modal Induk */}
           <button
             type="button"
-            onClick={() => setPeriod('actual')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              period === 'actual'
-                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-            }`}
+            onClick={() => setShowModalCost(!showModalCost)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-xs cursor-pointer"
+            title={showModalCost ? "Sembunyikan Modal Induk" : "Lihat Modal Induk"}
           >
-            Total Riil (Aktual)
+            {showModalCost ? <EyeOff className="h-3.5 w-3.5 text-rose-500" /> : <Eye className="h-3.5 w-3.5 text-slate-400" />}
+            <span>{showModalCost ? 'Sembunyikan Modal' : 'Lihat Modal'}</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setPeriod('monthly')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              period === 'monthly'
-                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-            }`}
-          >
-            Rata-rata Bulanan
-          </button>
-          <button
-            type="button"
-            onClick={() => setPeriod('yearly')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              period === 'yearly'
-                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-            }`}
-          >
-            Proyeksi 1 Tahun
-          </button>
+
+          <div className="flex items-center p-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setPeriod('actual')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                period === 'actual'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+              }`}
+            >
+              Total Riil (Aktual)
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod('monthly')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                period === 'monthly'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+              }`}
+            >
+              Rata-rata Bulanan
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod('yearly')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                period === 'yearly'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+              }`}
+            >
+              Proyeksi 1 Tahun
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Logic Explainer Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-emerald-500/10 to-transparent border border-blue-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-200">
+        <div className="flex items-start gap-3">
+          <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
+            <Calculator className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-black text-slate-900 dark:text-white">
+                Logika Finansial: Revenue Kas vs Revenue Per Bulan
+              </h4>
+              <span className="eyebrow-pill bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20 text-[9px]">
+                Multi-Durasi
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
+              Jika member berlangganan paket <strong>3 Bulan seharga Rp 90.000</strong>:
+              <br className="hidden sm:inline" />
+              • <strong>Total Kas (Revenue Riil):</strong> Terhitung penuh <strong>Rp 90.000</strong> (uang kas uang masuk di muka).
+              <br className="hidden sm:inline" />
+              • <strong>Revenue Per Bulan (MRR):</strong> Terhitung <strong>Rp 30.000 / bulan</strong> (dibagi rata per 30 hari selama masa aktif).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
+          <div className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-right shadow-xs">
+            <span className="text-[9px] uppercase font-bold text-slate-400 block">Total Kas Masuk (Revenue)</span>
+            <span className="font-mono font-black text-slate-900 dark:text-white text-sm">
+              {formatCurrency(metrics.totalContractedRevenue, 'IDR')}
+            </span>
+          </div>
+
+          <div className="px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-right shadow-xs">
+            <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">Omset / Bulan (MRR)</span>
+            <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm">
+              {formatCurrency(metrics.monthlyRevenueEstimate, 'IDR')}/bln
+            </span>
+          </div>
         </div>
       </div>
 
@@ -222,9 +280,20 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
               <div className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
                 {formatCurrency(displayRevenue, 'IDR')}
               </div>
-              <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
-                {period === 'actual' ? `Total iuran dari ${metrics.totalActive} slot aktif` : `${periodSubText} • ${metrics.totalActive} slot`}
-              </span>
+              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                {period === 'actual' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] ring-1 ring-emerald-500/20">
+                    ~{formatCurrency(metrics.monthlyRevenueEstimate, 'IDR')} / bulan
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold text-[10px] ring-1 ring-blue-500/20">
+                    Total Kas: {formatCurrency(metrics.totalContractedRevenue, 'IDR')}
+                  </span>
+                )}
+                <span className="text-[10px] text-slate-400 font-bold">
+                  ({metrics.totalActive} slot)
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -236,13 +305,29 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
                 Modal Seluruh Akun Induk (COGS)
               </span>
-              <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20 flex items-center justify-center">
-                <Wallet className="h-4 w-4" />
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowModalCost(!showModalCost)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  title={showModalCost ? "Sembunyikan Modal Induk" : "Lihat Modal Induk"}
+                >
+                  {showModalCost ? <EyeOff className="h-4 w-4 text-rose-500" /> : <Eye className="h-4 w-4" />}
+                </button>
+                <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20 flex items-center justify-center">
+                  <Wallet className="h-4 w-4" />
+                </div>
               </div>
             </div>
             <div>
               <div className="text-xl font-black text-rose-600 dark:text-rose-400 tracking-tight">
-                {formatCurrency(displayModal, 'IDR')}
+                {showModalCost ? (
+                  formatCurrency(displayModal, 'IDR')
+                ) : (
+                  <span className="font-mono tracking-widest text-slate-400 dark:text-slate-500 select-none">
+                    Rp ••••••
+                  </span>
+                )}
               </div>
               <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
                 Total modal beli {pools.length} Akun Master Pool
@@ -355,16 +440,33 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                 {/* Financial Line Items */}
                 <div className="space-y-3 mt-6 text-xs">
                   <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-600 dark:text-slate-300 font-bold">Total Omset Iuran Member:</span>
+                    <div>
+                      <span className="text-slate-600 dark:text-slate-300 font-bold block">Total Omset Iuran Member:</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
+                        {period === 'actual' 
+                          ? `Ekuivalen: ${formatCurrency(metrics.monthlyRevenueEstimate, 'IDR')}/bln` 
+                          : `Total Kas Riil: ${formatCurrency(metrics.totalContractedRevenue, 'IDR')}`}
+                      </span>
+                    </div>
                     <span className="font-mono font-black text-slate-900 dark:text-white">
                       +{formatCurrency(displayRevenue, 'IDR')}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                    <span className="text-rose-700 dark:text-rose-300 font-bold">Total Modal Seluruh Akun Induk:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-rose-700 dark:text-rose-300 font-bold">Total Modal Seluruh Akun Induk:</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowModalCost(!showModalCost)}
+                        className="p-0.5 rounded text-rose-400 hover:text-rose-600 dark:hover:text-rose-200 transition-colors cursor-pointer"
+                        title={showModalCost ? "Sembunyikan Modal" : "Lihat Modal"}
+                      >
+                        {showModalCost ? <EyeOff className="h-3 w-3 text-rose-500" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    </div>
                     <span className="font-mono font-black text-rose-600 dark:text-rose-400">
-                      -{formatCurrency(displayModal, 'IDR')}
+                      {showModalCost ? `-${formatCurrency(displayModal, 'IDR')}` : '-Rp ••••••'}
                     </span>
                   </div>
 
@@ -422,7 +524,19 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                   <tr className="border-b border-slate-200/80 dark:border-slate-800 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider">
                     <th className="pb-3 pl-2">Nama Pool & Master</th>
                     <th className="pb-3">Slot Okupansi</th>
-                    <th className="pb-3">Modal Induk ({periodLabel})</th>
+                    <th className="pb-3">
+                      <div className="flex items-center gap-1">
+                        <span>Modal Induk ({periodLabel})</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowModalCost(!showModalCost)}
+                          className="p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                          title={showModalCost ? "Sembunyikan Modal" : "Lihat Modal"}
+                        >
+                          {showModalCost ? <EyeOff className="h-3 w-3 text-rose-500" /> : <Eye className="h-3 w-3" />}
+                        </button>
+                      </div>
+                    </th>
                     <th className="pb-3">Omset Member ({periodLabel})</th>
                     <th className="pb-3">Laba Bersih ({periodLabel})</th>
                     <th className="pb-3">Margin %</th>
@@ -514,12 +628,24 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
 
                           {/* Modal Cost */}
                           <td className="py-3.5 font-mono font-bold text-rose-600 dark:text-rose-400">
-                            {formatCurrency(cost, 'IDR')}
+                            {showModalCost ? formatCurrency(cost, 'IDR') : 'Rp ••••••'}
                           </td>
 
                           {/* Omset Revenue */}
-                          <td className="py-3.5 font-mono font-black text-slate-900 dark:text-white">
-                            {formatCurrency(rev, 'IDR')}
+                          <td className="py-3.5">
+                            <div className="font-mono font-black text-slate-900 dark:text-white">
+                              {formatCurrency(rev, 'IDR')}
+                            </div>
+                            {period === 'actual' && monthlyRevenue > 0 && (
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block whitespace-nowrap">
+                                ~{formatCurrency(monthlyRevenue, 'IDR')}/bln
+                              </span>
+                            )}
+                            {period === 'monthly' && totalActualRevenue > 0 && (
+                              <span className="text-[10px] text-slate-400 font-medium block whitespace-nowrap">
+                                Kas: {formatCurrency(totalActualRevenue, 'IDR')}
+                              </span>
+                            )}
                           </td>
 
                           {/* Net Profit */}
@@ -588,9 +714,19 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
 
                                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                                     <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                                      <span className="text-[10px] text-slate-400 font-bold block">Modal Akun Induk</span>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-slate-400 font-bold block">Modal Akun Induk</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowModalCost(!showModalCost)}
+                                          className="p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                          title={showModalCost ? "Sembunyikan Modal" : "Lihat Modal"}
+                                        >
+                                          {showModalCost ? <EyeOff className="h-2.5 w-2.5 text-rose-500" /> : <Eye className="h-2.5 w-2.5" />}
+                                        </button>
+                                      </div>
                                       <span className="font-mono font-extrabold text-rose-600 dark:text-rose-400 text-sm">
-                                        {formatCurrency(cost, 'IDR')}
+                                        {showModalCost ? formatCurrency(cost, 'IDR') : 'Rp ••••••'}
                                       </span>
                                       <span className="text-[10px] text-slate-400 block mt-0.5">
                                         {period === 'actual' ? 'Total modal beli akun master' : `Biaya modal per ${periodLabel}`}
@@ -602,8 +738,11 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                                       <span className="font-mono font-extrabold text-blue-600 dark:text-blue-400 text-sm">
                                         +{formatCurrency(rev, 'IDR')}
                                       </span>
-                                      <span className="text-[10px] text-slate-400 block mt-0.5">
-                                        {period === 'actual' ? 'Total kas iuran yang dibayar member' : `Rata-rata omset per ${periodLabel}`}
+                                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
+                                        Rate: {formatCurrency(monthlyRevenue, 'IDR')} / bulan
+                                      </div>
+                                      <span className="text-[9px] text-slate-400 block mt-0.5">
+                                        Total kas masuk: {formatCurrency(totalActualRevenue, 'IDR')}
                                       </span>
                                     </div>
 
@@ -650,8 +789,8 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                                             <th className="p-2.5 pl-3">Nama Member</th>
                                             <th className="p-2.5">Email Member</th>
                                             <th className="p-2.5">Siklus / Paket</th>
-                                            <th className="p-2.5">Harga Paket Member</th>
-                                            <th className="p-2.5">Rate Bulanan</th>
+                                            <th className="p-2.5">Harga Paket (Total Kas)</th>
+                                            <th className="p-2.5">Rate / Bulan</th>
                                             <th className="p-2.5">Jatuh Tempo</th>
                                             <th className="p-2.5 pr-3 text-right">Status</th>
                                           </tr>
@@ -675,7 +814,7 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                                                 <td className="p-2.5 font-mono font-black text-slate-900 dark:text-white">
                                                   {formatCurrency(m.price, 'IDR')}
                                                 </td>
-                                                <td className="p-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">
+                                                <td className="p-2.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">
                                                   {formatCurrency(monthlyRate, 'IDR')}/bln
                                                 </td>
                                                 <td className="p-2.5 text-[11px] text-slate-500 dark:text-slate-400">

@@ -9,8 +9,12 @@ import {
   Send
 } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
-import { generateWhatsAppReminderText, formatWhatsAppUrl } from '@/lib/whatsapp';
-import { formatCurrency } from '@/lib/utils';
+import { 
+  generateWhatsAppReminderText, 
+  generateWhatsAppActivationText, 
+  formatWhatsAppUrl 
+} from '@/lib/whatsapp';
+import { formatCurrency, getCycleLabel, getMonthlyEquivalent, getWarrantyInfo } from '@/lib/utils';
 
 interface WhatsAppMessageModalProps {
   subscription: Subscription | null;
@@ -25,6 +29,7 @@ export const WhatsAppMessageModal: React.FC<WhatsAppMessageModalProps> = ({
   onClose,
   onLoggedSent,
 }) => {
+  const [templateType, setTemplateType] = useState<'reminder' | 'activation'>('reminder');
   const [message, setMessage] = useState(() => (sub ? generateWhatsAppReminderText(sub) : ''));
   const [phone, setPhone] = useState(() => (sub?.clientPhone || ''));
   const [copied, setCopied] = useState(false);
@@ -32,6 +37,7 @@ export const WhatsAppMessageModal: React.FC<WhatsAppMessageModalProps> = ({
   // Sync state when sub changes
   useEffect(() => {
     if (sub) {
+      setTemplateType('reminder');
       setMessage(generateWhatsAppReminderText(sub));
       setPhone(sub.clientPhone || '');
       setCopied(false);
@@ -127,11 +133,19 @@ export const WhatsAppMessageModal: React.FC<WhatsAppMessageModalProps> = ({
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
                   Layanan & Biaya
                 </span>
-                <div className="font-extrabold text-slate-900 dark:text-white">
-                  {sub.name}
+                <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                  <span>{sub.name}</span>
+                  <span className={`eyebrow-pill text-[9px] py-0 px-1.5 ring-1 ${getWarrantyInfo(sub.billingCycle).badgeClass}`}>
+                    {getWarrantyInfo(sub.billingCycle).shortBadge}
+                  </span>
                 </div>
                 <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
-                  {formatCurrency(sub.price, sub.currency)} ({sub.billingCycle})
+                  {formatCurrency(sub.price, sub.currency)} ({getCycleLabel(sub.billingCycle)})
+                  {sub.billingCycle !== 'monthly' && (
+                    <span className="text-emerald-600 dark:text-emerald-400 ml-1.5 font-extrabold">
+                      (~{formatCurrency(getMonthlyEquivalent(sub.price, sub.billingCycle), sub.currency)}/bln)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -148,6 +162,44 @@ export const WhatsAppMessageModal: React.FC<WhatsAppMessageModalProps> = ({
                 placeholder="Contoh: 081234567890"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
               />
+            </div>
+
+            {/* Template Selector Pills */}
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Pilih Jenis Template Pesan:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTemplateType('activation');
+                    setMessage(generateWhatsAppActivationText(sub));
+                  }}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                    templateType === 'activation'
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 ring-1 ring-blue-500/20'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  }`}
+                >
+                  <span>🎉 Baru Aktif (Suruh ACC)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTemplateType('reminder');
+                    setMessage(generateWhatsAppReminderText(sub));
+                  }}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                    templateType === 'reminder'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 ring-1 ring-emerald-500/20'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  }`}
+                >
+                  <span>⏰ Tagihan / Pengingat</span>
+                </button>
+              </div>
             </div>
 
             {/* Message Area */}

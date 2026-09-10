@@ -28,7 +28,7 @@ import {
   ActionChecklistItem 
 } from '@/types/subscription';
 import { PRESET_SERVICES, PresetService, buildDefaultChecklist } from '@/lib/presets';
-import { formatDate, formatDateIndo, formatCurrency, formatNumberIDR, parseCurrencyInput } from '@/lib/utils';
+import { formatDate, formatDateIndo, formatCurrency, formatNumberIDR, parseCurrencyInput, getMonthlyEquivalent, getBillingCycleMonths, getWarrantyInfo } from '@/lib/utils';
 import { format, addMonths, parseISO, isValid } from 'date-fns';
 import { DatePickerField } from '@/components/ui/DatePickerField';
 
@@ -209,6 +209,11 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
   const [copiedPoolPassword, setCopiedPoolPassword] = useState(false);
 
   const currentPool = pools.find(p => p.id === poolId) || preselectedPool;
+
+  const currentDurationKey = activeDurationPackage && activeDurationPackage !== 'pool_end'
+    ? activeDurationPackage
+    : billingCycle;
+  const warrantyInfo = getWarrantyInfo(currentDurationKey);
 
   // Auto-Save Draft to localStorage on each change (only in add mode)
   useEffect(() => {
@@ -797,6 +802,30 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                   )}
                 </div>
               </button>
+
+              {/* Dynamic Warranty Status Badge */}
+              <div className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 transition-all ${
+                warrantyInfo.isGuaranteed 
+                  ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-800 dark:text-emerald-200' 
+                  : 'bg-amber-500/10 border-amber-500/25 text-amber-800 dark:text-amber-200'
+              }`}>
+                <div className="shrink-0 text-sm mt-0.5">
+                  {warrantyInfo.isGuaranteed ? '🛡️' : '📦'}
+                </div>
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-[11px]">
+                      {warrantyInfo.label}
+                    </span>
+                    <span className={`eyebrow-pill text-[9px] py-0 px-1.5 ring-1 ${warrantyInfo.badgeClass}`}>
+                      {warrantyInfo.targetAccountLabel}
+                    </span>
+                  </div>
+                  <p className="text-[10px] opacity-90 leading-relaxed">
+                    {warrantyInfo.description}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Row 1: Dates (Ample Horizontal Width) */}
@@ -879,6 +908,19 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                 </select>
               </div>
             </div>
+
+            {/* Per-Month Rate Breakdown Helper */}
+            {billingCycle !== 'monthly' && price > 0 && (
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs animate-in fade-in">
+                <span className="font-black text-sm">💡</span>
+                <div className="flex-1">
+                  <span className="font-bold">Perhitungan Per Bulan: </span>
+                  <span>
+                    Total <span className="font-extrabold">{formatCurrency(price, currency)}</span> untuk <span className="font-extrabold">{getBillingCycleMonths(billingCycle)} bulan</span> = <span className="font-black text-emerald-600 dark:text-emerald-400 underline">{formatCurrency(getMonthlyEquivalent(price, billingCycle), currency)} / bulan</span>
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Admin Kick Checklist Builder */}
             <div>

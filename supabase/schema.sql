@@ -12,11 +12,22 @@ CREATE TABLE IF NOT EXISTS public.pools (
     total_capacity INT NOT NULL DEFAULT 5,
     master_end_date DATE NOT NULL,
     master_cost NUMERIC(12, 2) DEFAULT 0,
+    master_password TEXT,
     notes TEXT,
     avatar_color VARCHAR(50) DEFAULT 'bg-blue-600',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration safety for existing pools table
+DO $$ BEGIN 
+IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'pools' AND column_name = 'master_password'
+) THEN
+    ALTER TABLE public.pools ADD COLUMN master_password TEXT;
+END IF;
+END $$;
 -- 2. Table Subscriptions / Member Slots
 CREATE TABLE IF NOT EXISTS public.subscriptions (
     id TEXT PRIMARY KEY,
@@ -171,13 +182,29 @@ CREATE TABLE IF NOT EXISTS public.pricing_packages (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 5. Enable Row Level Security
+-- 5. Table Credential Vault (Encrypted Master Account Passwords, Recovery Codes & PINs)
+CREATE TABLE IF NOT EXISTS public.credential_vault (
+    id TEXT PRIMARY KEY,
+    pool_id TEXT REFERENCES public.pools(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    service_provider VARCHAR(255) NOT NULL DEFAULT 'Google One',
+    account_email VARCHAR(255) NOT NULL,
+    secret_type VARCHAR(50) NOT NULL DEFAULT 'password', -- 'password', 'recovery_code', 'pin', 'notes'
+    secret_value TEXT NOT NULL,
+    is_encrypted BOOLEAN NOT NULL DEFAULT TRUE,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 6. Enable Row Level Security
 ALTER TABLE public.pools ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pricing_packages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.credential_vault ENABLE ROW LEVEL SECURITY;
 
--- 6. Safe Policy Creation (Drop first if exists to prevent 42710 error)
+-- 7. Safe Policy Creation (Drop first if exists to prevent 42710 error)
 DROP POLICY IF EXISTS "Enable all operations for anon on pools" ON public.pools;
 CREATE POLICY "Enable all operations for anon on pools" ON public.pools FOR ALL USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "Enable all operations for anon on subscriptions" ON public.subscriptions;
@@ -186,8 +213,10 @@ DROP POLICY IF EXISTS "Enable all operations for anon on logs" ON public.activit
 CREATE POLICY "Enable all operations for anon on logs" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "Enable all operations for anon on packages" ON public.pricing_packages;
 CREATE POLICY "Enable all operations for anon on packages" ON public.pricing_packages FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Enable all operations for anon on credential_vault" ON public.credential_vault;
+CREATE POLICY "Enable all operations for anon on credential_vault" ON public.credential_vault FOR ALL USING (true) WITH CHECK (true);
 
--- 7. Fast Indexes
+-- 8. Fast Indexes
 CREATE INDEX IF NOT EXISTS idx_pools_master_end_date ON public.pools(master_end_date);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_pool_id ON public.subscriptions(pool_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON public.subscriptions(status);
@@ -197,3 +226,5 @@ CREATE INDEX IF NOT EXISTS idx_activity_logs_severity ON public.activity_logs(se
 CREATE INDEX IF NOT EXISTS idx_activity_logs_timestamp ON public.activity_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_pricing_packages_account_type ON public.pricing_packages(account_type);
 CREATE INDEX IF NOT EXISTS idx_pricing_packages_sort_order ON public.pricing_packages(sort_order ASC);
+CREATE INDEX IF NOT EXISTS idx_credential_vault_pool_id ON public.credential_vault(pool_id);
+CREATE INDEX IF NOT EXISTS idx_credential_vault_account_email ON public.credential_vault(account_email);

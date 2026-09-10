@@ -12,7 +12,8 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Copy
+  Copy,
+  ShieldCheck
 } from 'lucide-react';
 import { AccountPool, SubscriptionCategory } from '@/types/subscription';
 import { format, addMonths } from 'date-fns';
@@ -325,21 +326,27 @@ export const AddEditPoolModal: React.FC<AddEditPoolModalProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block font-bold text-slate-700 dark:text-slate-300">
-                      Password Akun Induk (Opsional)
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-750 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />
+                      Password Akun Induk (Credential Vault)
                     </label>
-                    {masterPassword && (
-                      <button
-                        type="button"
-                        onClick={handleCopyPassword}
-                        className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedPassword ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                        <span>{copiedPassword ? 'Tersalin' : 'Salin Password'}</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="eyebrow-pill text-[9px] bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20">
+                        🔐 Simpan di Vault
+                      </span>
+                      {masterPassword && (
+                        <button
+                          type="button"
+                          onClick={handleCopyPassword}
+                          className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedPassword ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                          <span>{copiedPassword ? 'Tersalin' : 'Salin'}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="relative">
                     <input
@@ -358,8 +365,8 @@ export const AddEditPoolModal: React.FC<AddEditPoolModalProps> = ({
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    Disimpan aman di browser/database lokal untuk mempermudah saat login ke Family Group / Admin Console.
+                  <span className="text-[10px] text-slate-400 block leading-relaxed">
+                    Tersimpan aman di Credential Vault (terenkripsi) untuk mempermudah saat login ke Family Group / Admin Console.
                   </span>
                 </div>
               </div>
