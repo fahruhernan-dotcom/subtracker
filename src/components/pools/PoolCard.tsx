@@ -23,7 +23,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { AccountPool, Subscription } from '@/types/subscription';
-import { formatDate, getDaysRemaining, formatCurrency } from '@/lib/utils';
+import { formatDate, getDaysRemaining, formatCurrency, getPoolTierInfo, cn } from '@/lib/utils';
 
 interface PoolCardProps {
   pool: AccountPool;
@@ -77,6 +77,7 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   const masterDaysLeft = getDaysRemaining(pool.masterEndDate);
   const isMasterExpiringSoon = masterDaysLeft <= 14 && masterDaysLeft >= 0;
   const isMasterExpired = masterDaysLeft < 0;
+  const tierInfo = getPoolTierInfo(pool);
 
   const handleCopy = (type: 'email' | 'password', text: string) => {
     navigator.clipboard.writeText(text);
@@ -85,7 +86,12 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   };
 
   return (
-    <div className="bezel-shell group hover:border-blue-500/30 transition-all duration-300">
+    <div className={cn(
+      "bezel-shell transition-all duration-300",
+      tierInfo.isExpiredInactive
+        ? "opacity-85 border-rose-500/30 bg-rose-500/[0.02] dark:border-rose-900/40"
+        : "group hover:border-blue-500/30"
+    )}>
       <div className="bezel-core p-5 sm:p-6 space-y-4">
         
         {/* Main Horizontal Layout: 3 Columns on Large Screens */}
@@ -98,17 +104,25 @@ export const PoolCard: React.FC<PoolCardProps> = ({
                 <Layers className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="eyebrow-pill text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                     {pool.provider}
                   </span>
-                  {availableSlots === 0 ? (
-                    <span className="eyebrow-pill text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+                  {/* Pool Tier / Status Badge */}
+                  <span className={cn("eyebrow-pill text-[9px] font-black", tierInfo.badgeClass)}>
+                    {tierInfo.badgeLabel}
+                  </span>
+                  {tierInfo.isExpiredInactive ? (
+                    <span className="eyebrow-pill text-[9px] bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20 font-bold">
+                      0 Slot (Nonaktif)
+                    </span>
+                  ) : availableSlots === 0 ? (
+                    <span className="eyebrow-pill text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20 font-bold">
                       Slot Penuh
                     </span>
                   ) : (
-                    <span className="eyebrow-pill text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20">
-                      {availableSlots} Slot Kosong
+                    <span className="eyebrow-pill text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20 font-bold">
+                      {availableSlots} Slot Kosong ({tierInfo.slotBadgeText})
                     </span>
                   )}
                 </div>
@@ -199,19 +213,29 @@ export const PoolCard: React.FC<PoolCardProps> = ({
             </div>
 
             {/* Master Expiry Pill */}
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/60 dark:border-slate-800 text-[11px]">
-              <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
-                <Clock className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                <span>Masa Aktif Akun Induk:</span>
+            <div className={cn(
+              "flex flex-col gap-1 p-2.5 rounded-xl border text-[11px]",
+              tierInfo.isExpiredInactive
+                ? "bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40"
+                : "bg-slate-50 dark:bg-slate-800/30 border-slate-200/60 dark:border-slate-800"
+            )}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
+                  <Clock className={cn("h-3.5 w-3.5 shrink-0", tierInfo.isExpiredInactive ? "text-rose-500" : "text-blue-500")} />
+                  <span>Masa Aktif Akun Induk:</span>
+                </div>
+                <div className="font-extrabold flex items-center gap-1 font-mono">
+                  {isMasterExpired ? (
+                    <span className="text-rose-600 dark:text-rose-400 font-black">🔴 Expired ({Math.abs(masterDaysLeft)}d lalu)</span>
+                  ) : isMasterExpiringSoon ? (
+                    <span className="text-amber-600 dark:text-amber-400">{masterDaysLeft} hari lagi ({formatDate(pool.masterEndDate)})</span>
+                  ) : (
+                    <span className="text-emerald-600 dark:text-emerald-400">{masterDaysLeft} hari lagi ({formatDate(pool.masterEndDate)})</span>
+                  )}
+                </div>
               </div>
-              <div className="font-extrabold flex items-center gap-1 font-mono">
-                {isMasterExpired ? (
-                  <span className="text-rose-600 dark:text-rose-400">Expired ({Math.abs(masterDaysLeft)}d lalu)</span>
-                ) : isMasterExpiringSoon ? (
-                  <span className="text-amber-600 dark:text-amber-400">{masterDaysLeft} hari lagi ({formatDate(pool.masterEndDate)})</span>
-                ) : (
-                  <span className="text-emerald-600 dark:text-emerald-400">{masterDaysLeft} hari lagi ({formatDate(pool.masterEndDate)})</span>
-                )}
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-tight">
+                {tierInfo.description}
               </div>
             </div>
           </div>
@@ -365,15 +389,31 @@ export const PoolCard: React.FC<PoolCardProps> = ({
               <button
                 type="button"
                 onClick={() => onAddMemberToPool(pool)}
-                disabled={availableSlots === 0}
-                className={`w-full group flex items-center justify-center gap-2 py-2 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  availableSlots > 0
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 active:scale-[0.98]'
-                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-400 cursor-not-allowed border border-slate-200/60 dark:border-slate-800'
-                }`}
+                disabled={availableSlots === 0 || tierInfo.isExpiredInactive}
+                title={
+                  tierInfo.isExpiredInactive
+                    ? "Pool ini nonaktif karena masa aktif akun induk telah habis. Perpanjang akun master terlebih dahulu."
+                    : availableSlots === 0
+                    ? "Slot pool penuh"
+                    : "Alokasikan member baru ke pool ini"
+                }
+                className={cn(
+                  "w-full group flex items-center justify-center gap-2 py-2 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer",
+                  tierInfo.isExpiredInactive
+                    ? "bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/30 cursor-not-allowed opacity-80"
+                    : availableSlots > 0
+                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 active:scale-[0.98]"
+                    : "bg-slate-100 dark:bg-slate-800/60 text-slate-400 cursor-not-allowed border border-slate-200/60 dark:border-slate-800"
+                )}
               >
-                <span>{availableSlots > 0 ? '+ Alokasikan Member' : 'Slot Pool Penuh'}</span>
-                {availableSlots > 0 && (
+                <span>
+                  {tierInfo.isExpiredInactive
+                    ? "🔴 Pool Nonaktif (Expired)"
+                    : availableSlots > 0
+                    ? "+ Alokasikan Member"
+                    : "Slot Pool Penuh"}
+                </span>
+                {availableSlots > 0 && !tierInfo.isExpiredInactive && (
                   <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center transition-transform group-hover:scale-110">
                     <Plus className="h-3 w-3 text-white" />
                   </div>

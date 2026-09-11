@@ -8,9 +8,14 @@ import {
   Sun, 
   Plus, 
   Database,
-  Calendar
+  Calendar,
+  Cloud,
+  CloudOff,
+  RefreshCw
 } from 'lucide-react';
 import { AppNotification } from '@/types/subscription';
+
+export type CloudSyncStatus = 'synced' | 'syncing' | 'offline' | 'unconfigured';
 
 interface NavbarProps {
   searchQuery: string;
@@ -22,6 +27,7 @@ interface NavbarProps {
   notifications: AppNotification[];
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  cloudSyncStatus?: CloudSyncStatus;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   notifications,
   isDarkMode,
   onToggleDarkMode,
+  cloudSyncStatus = 'unconfigured',
 }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -63,6 +70,58 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2 md:gap-3">
+        {/* Cloud Sync Status Indicator */}
+        <button
+          onClick={onOpenExportImport}
+          title={
+            cloudSyncStatus === 'synced'
+              ? 'Tersinkronisasi ke Cloud Supabase'
+              : cloudSyncStatus === 'syncing'
+              ? 'Sedang menyinkronkan data cloud...'
+              : cloudSyncStatus === 'offline'
+              ? 'Mode Offline (Menggunakan Cache Lokal)'
+              : 'Supabase belum dikonfigurasi di Vercel (Klik untuk panduan)'
+          }
+          className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer shadow-2xs border ${
+            cloudSyncStatus === 'synced'
+              ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/15 border-emerald-500/30'
+              : cloudSyncStatus === 'syncing'
+              ? 'text-blue-700 dark:text-blue-300 bg-blue-500/10 border-blue-500/30 animate-pulse'
+              : cloudSyncStatus === 'offline'
+              ? 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
+              : 'text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/30'
+          }`}
+        >
+          {cloudSyncStatus === 'synced' && (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <Cloud className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden md:inline">Cloud Synced</span>
+            </>
+          )}
+          {cloudSyncStatus === 'syncing' && (
+            <>
+              <RefreshCw className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 animate-spin" />
+              <span className="hidden md:inline">Syncing...</span>
+            </>
+          )}
+          {cloudSyncStatus === 'unconfigured' && (
+            <>
+              <CloudOff className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+              <span className="hidden md:inline">Local Only</span>
+            </>
+          )}
+          {cloudSyncStatus === 'offline' && (
+            <>
+              <CloudOff className="h-3.5 w-3.5 text-slate-500" />
+              <span className="hidden md:inline">Offline Cache</span>
+            </>
+          )}
+        </button>
+
         {/* Google Calendar Sync */}
         {onOpenCalendarSync && (
           <button

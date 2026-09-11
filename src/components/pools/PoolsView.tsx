@@ -10,11 +10,14 @@ import {
   Search,
   Building,
   Eye,
-  EyeOff
+  EyeOff,
+  ShieldCheck,
+  Zap,
+  AlertCircle
 } from 'lucide-react';
 import { AccountPool, Subscription } from '@/types/subscription';
 import { PoolCard } from './PoolCard';
-import { getDaysRemaining } from '@/lib/utils';
+import { getDaysRemaining, getPoolTierInfo, cn } from '@/lib/utils';
 
 interface PoolsViewProps {
   pools: AccountPool[];
@@ -39,12 +42,18 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [tierFilter, setTierFilter] = useState<'ALL' | 'GUARANTEED' | 'SHORT_TERM' | 'EXPIRED'>('ALL');
   const [showAllModalCost, setShowAllModalCost] = useState<boolean>(false);
 
-  // Compute Pool Metrics
+  // Compute Pool Metrics with Tier Breakdown & Auto-Inactive
   const poolMetrics = useMemo(() => {
     let totalCapacity = 0;
     let totalOccupied = 0;
+    let availableGuaranteedSlots = 0; // >= 180 hari (bisa 6 - 12 bln)
+    let availableShortTermSlots = 0;   // 0 - 179 hari (khusus lepas 2 - 3 bln)
+    let guaranteedPoolsCount = 0;
+    let shortTermPoolsCount = 0;
+    let expiredPoolsCount = 0;
     let masterExpiringCount = 0;
 
     pools.forEach((p) => {
@@ -53,21 +62,37 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
         s => (s.poolId === p.id || s.poolName?.toLowerCase() === p.name.toLowerCase()) && s.status !== 'TERMINATED'
       ).length;
       totalOccupied += occupied;
+      const availableInPool = Math.max(0, p.totalCapacity - occupied);
 
       const daysLeft = getDaysRemaining(p.masterEndDate);
-      if (daysLeft <= 30 && daysLeft >= 0) {
-        masterExpiringCount++;
+      if (daysLeft < 0) {
+        expiredPoolsCount++;
+        // Expired pools DO NOT contribute to available slots for sale!
+      } else if (daysLeft >= 180) {
+        guaranteedPoolsCount++;
+        availableGuaranteedSlots += availableInPool;
+      } else {
+        shortTermPoolsCount++;
+        availableShortTermSlots += availableInPool;
+        if (daysLeft <= 30) {
+          masterExpiringCount++;
+        }
       }
     });
 
-    const totalAvailable = Math.max(0, totalCapacity - totalOccupied);
+    const totalActiveAvailable = availableGuaranteedSlots + availableShortTermSlots;
     const overallOccupancy = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
 
     return {
       totalPools: pools.length,
       totalCapacity,
       totalOccupied,
-      totalAvailable,
+      totalActiveAvailable,
+      availableGuaranteedSlots,
+      availableShortTermSlots,
+      guaranteedPoolsCount,
+      shortTermPoolsCount,
+      expiredPoolsCount,
       overallOccupancy,
       masterExpiringCount,
     };
@@ -83,9 +108,19 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
 
       const matchesCat = categoryFilter === 'ALL' || p.category === categoryFilter;
 
-      return matchesSearch && matchesCat;
+      const tierInfo = getPoolTierInfo(p);
+      let matchesTier = true;
+      if (tierFilter === 'GUARANTEED') {
+        matchesTier = tierInfo.tier === 'LONG_TERM_GUARANTEED';
+      } else if (tierFilter === 'SHORT_TERM') {
+        matchesTier = tierInfo.tier === 'SHORT_TERM_LEPAS';
+      } else if (tierFilter === 'EXPIRED') {
+        matchesTier = tierInfo.isExpiredInactive;
+      }
+
+      return matchesSearch && matchesCat && matchesTier;
     });
-  }, [pools, searchQuery, categoryFilter]);
+  }, [pools, searchQuery, categoryFilter, tierFilter]);
 
   return (
     <div className="space-y-6">
@@ -120,26 +155,49 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
         </button>
       </div>
 
-      {/* 4 Summary Metric Cards */}
+      {/* 4 Summary Metric Cards: Inventori Garansi Perpanjang vs Akun Lepas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1 */}
+        {/* Card 1: Slot Garansi Perpanjang (6 - 12 Bulan) */}
         <div className="bezel-shell">
           <div className="bezel-core p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
-              <Layers className="h-5 w-5" />
+            <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                Total Pool / Akun Induk
+                Slot Garansi Perpanjang
               </span>
-              <div className="text-xl font-black text-slate-900 dark:text-white">
-                {poolMetrics.totalPools} <span className="text-xs font-medium text-slate-400">Grup</span>
+              <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                {poolMetrics.availableGuaranteedSlots} <span className="text-xs font-medium text-slate-400">Slot (6-12 Bln)</span>
               </div>
+              <span className="text-[10px] text-slate-400 font-medium">
+                {poolMetrics.guaranteedPoolsCount} Pool Aktif (≥ 180 Hari)
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Card 2 */}
+        {/* Card 2: Slot Akun Lepas (2 - 3 Bulan) */}
+        <div className="bezel-shell">
+          <div className="bezel-core p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                Slot Khusus Akun Lepas
+              </span>
+              <div className="text-xl font-black text-amber-600 dark:text-amber-400">
+                {poolMetrics.availableShortTermSlots} <span className="text-xs font-medium text-slate-400">Slot (2-3 Bln)</span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium">
+                {poolMetrics.shortTermPoolsCount} Pool Khusus Lepas (&lt; 180 Hari)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Total Terisi / Kapasitas */}
         <div className="bezel-shell">
           <div className="bezel-core p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/20 flex items-center justify-center shrink-0">
@@ -152,43 +210,114 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
               <div className="text-xl font-black text-slate-900 dark:text-white">
                 {poolMetrics.totalOccupied} / {poolMetrics.totalCapacity} <span className="text-xs font-bold text-indigo-500">({poolMetrics.overallOccupancy}%)</span>
               </div>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Total {poolMetrics.totalActiveAvailable} Slot Aktif Siap Jual
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Card 3 */}
+        {/* Card 4: Status Akun Induk & Auto-Nonaktif */}
         <div className="bezel-shell">
           <div className="bezel-core p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="h-5 w-5" />
+            <div className={`h-10 w-10 rounded-2xl ${
+              poolMetrics.expiredPoolsCount > 0 
+                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20' 
+                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
+            } flex items-center justify-center shrink-0`}>
+              {poolMetrics.expiredPoolsCount > 0 ? <AlertCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
             </div>
             <div>
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                Slot Kosong (Available)
+                Status Akun Induk
               </span>
-              <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                {poolMetrics.totalAvailable} <span className="text-xs font-medium text-slate-400">Slot Siap Jual</span>
+              <div className={`text-xl font-black ${poolMetrics.expiredPoolsCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                {poolMetrics.expiredPoolsCount > 0 
+                  ? `${poolMetrics.expiredPoolsCount} Nonaktif` 
+                  : `${poolMetrics.totalPools} Aktif`}
               </div>
+              <span className="text-[10px] text-slate-400 font-medium">
+                {poolMetrics.expiredPoolsCount > 0 
+                  ? `${poolMetrics.expiredPoolsCount} Akun Expired (Otomatis Nonaktif)` 
+                  : poolMetrics.masterExpiringCount > 0 
+                  ? `${poolMetrics.masterExpiringCount} Akun Expire ≤ 30 Hari` 
+                  : 'Semua Akun Induk Normal'}
+              </span>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Card 4 */}
-        <div className="bezel-shell">
-          <div className="bezel-core p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                Akun Induk Jatuh Tempo (30d)
-              </span>
-              <div className="text-xl font-black text-amber-600 dark:text-amber-400">
-                {poolMetrics.masterExpiringCount} <span className="text-xs font-medium text-slate-400">Akun</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Tier Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setTierFilter('ALL')}
+          className={cn(
+            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap",
+            tierFilter === 'ALL'
+              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm"
+              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+          )}
+        >
+          <span>Semua Pool</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/20">
+            {pools.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTierFilter('GUARANTEED')}
+          className={cn(
+            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap",
+            tierFilter === 'GUARANTEED'
+              ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+              : "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+          )}
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>Garansi Perpanjang (6-12 Bln)</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20">
+            {poolMetrics.guaranteedPoolsCount} Pool • {poolMetrics.availableGuaranteedSlots} Slot
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTierFilter('SHORT_TERM')}
+          className={cn(
+            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap",
+            tierFilter === 'SHORT_TERM'
+              ? "bg-amber-600 text-white shadow-md shadow-amber-500/20"
+              : "bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+          )}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          <span>Khusus Akun Lepas (2-3 Bln)</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20">
+            {poolMetrics.shortTermPoolsCount} Pool • {poolMetrics.availableShortTermSlots} Slot
+          </span>
+        </button>
+
+        {poolMetrics.expiredPoolsCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setTierFilter('EXPIRED')}
+            className={cn(
+              "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap",
+              tierFilter === 'EXPIRED'
+                ? "bg-rose-600 text-white shadow-md shadow-rose-500/20"
+                : "bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+            )}
+          >
+            <AlertCircle className="h-3.5 w-3.5" />
+            <span>Nonaktif / Expired</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/20">
+              {poolMetrics.expiredPoolsCount} Pool
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Filter & Search Bar */}

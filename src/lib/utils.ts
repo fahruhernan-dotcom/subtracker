@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, parseISO, differenceInCalendarDays, addDays, addMonths, addYears } from "date-fns";
-import { BillingCycle, CurrencyCode, SubscriptionStatus } from "@/types/subscription";
+import { BillingCycle, CurrencyCode, SubscriptionStatus, AccountPool } from "@/types/subscription";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -349,6 +349,83 @@ export function getWarrantyInfo(durationMonthsOrCycle: number | BillingCycle | s
     isGuaranteed: false,
     targetAccountLabel: 'Email Sekunder / Backup',
     description: 'Sistem akun lepas untuk email cadangan. Tidak disarankan untuk email utama demi mencegah limit Google 12 bulan.'
+  };
+}
+
+export type PoolTier = 'LONG_TERM_GUARANTEED' | 'SHORT_TERM_LEPAS' | 'EXPIRED_INACTIVE';
+
+export interface PoolTierInfo {
+  tier: PoolTier;
+  label: string;
+  badgeLabel: string;
+  badgeClass: string;
+  cardBorderClass: string;
+  maxRecommendedMonths: number;
+  isGuaranteedRenewal: boolean;
+  isExpiredInactive: boolean;
+  daysRemaining: number;
+  slotBadgeText: string;
+  description: string;
+  allowedDurations: number[];
+}
+
+/**
+ * Menghitung klasifikasi Pool & Auto-Nonaktif berdasarkan sisa masa aktif akun induk:
+ * - daysRemaining < 0: EXPIRED_INACTIVE (Auto-Nonaktif, 0 slot jual, blokir alokasi member)
+ * - daysRemaining >= 180: LONG_TERM_GUARANTEED (Garansi Perpanjangan, siap paket 6 - 12 Bulan)
+ * - 0 <= daysRemaining < 180: SHORT_TERM_LEPAS (Akun Lepas, khusus paket 2 - 3 Bulan)
+ */
+export function getPoolTierInfo(pool?: Partial<AccountPool> | null): PoolTierInfo {
+  const days = pool?.masterEndDate ? getDaysRemaining(pool.masterEndDate) : 0;
+
+  if (days < 0) {
+    return {
+      tier: 'EXPIRED_INACTIVE',
+      label: 'Nonaktif / Expired',
+      badgeLabel: '🔴 Nonaktif (Masa Aktif Habis)',
+      badgeClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20',
+      cardBorderClass: 'border-rose-500/30 dark:border-rose-900/50 bg-rose-500/[0.02]',
+      maxRecommendedMonths: 0,
+      isGuaranteedRenewal: false,
+      isExpiredInactive: true,
+      daysRemaining: days,
+      slotBadgeText: 'Pool Nonaktif',
+      description: `Masa aktif akun induk telah habis ${Math.abs(days)} hari lalu. Perpanjang akun master untuk mengaktifkan kembali.`,
+      allowedDurations: [],
+    };
+  }
+
+  if (days >= 180) {
+    return {
+      tier: 'LONG_TERM_GUARANTEED',
+      label: 'Garansi Perpanjangan (Long-Term)',
+      badgeLabel: '🛡️ Garansi Perpanjang (6 - 12 Bulan)',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20',
+      cardBorderClass: 'border-emerald-500/30 dark:border-emerald-900/40',
+      maxRecommendedMonths: 12,
+      isGuaranteedRenewal: true,
+      isExpiredInactive: false,
+      daysRemaining: days,
+      slotBadgeText: 'Bisa Perpanjang 6-12 Bln',
+      description: `Masa aktif akun induk masih ${days} hari lagi (>= 6 bulan). 100% aman untuk paket 6 bulan dan 1 tahun di akun utama tanpa risiko limit Google.`,
+      allowedDurations: [6, 12],
+    };
+  }
+
+  const maxMonths = Math.min(4, Math.max(1, Math.floor(days / 30)));
+  return {
+    tier: 'SHORT_TERM_LEPAS',
+    label: 'Akun Lepas (Short-Term)',
+    badgeLabel: `⚡ Khusus Akun Lepas (Maks ${maxMonths} Bulan)`,
+    badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20',
+    cardBorderClass: 'border-amber-500/30 dark:border-amber-900/40',
+    maxRecommendedMonths: maxMonths,
+    isGuaranteedRenewal: false,
+    isExpiredInactive: false,
+    daysRemaining: days,
+    slotBadgeText: `Khusus Lepas ${maxMonths} Bln`,
+    description: `Masa aktif tersisa ${days} hari (~${(days / 30).toFixed(1)} bulan). Belum bisa paket 6 bulan, disarankan untuk paket 2 - ${maxMonths} bulan di email cadangan.`,
+    allowedDurations: [1, 2, 3, 4].filter(m => m <= maxMonths),
   };
 }
 

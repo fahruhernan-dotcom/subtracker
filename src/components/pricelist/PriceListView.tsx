@@ -27,7 +27,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { AccountPool, Subscription, PricingPackage } from '@/types/subscription';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getPoolTierInfo } from '@/lib/utils';
 import { AddEditPackageModal } from '@/components/pricelist/AddEditPackageModal';
 
 interface PriceListViewProps {
@@ -68,6 +68,39 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
   const secondaryPackages = packages
     .filter((p) => p.accountType === 'SECONDARY_EMAIL' && p.isActive !== false)
     .sort((a, b) => (a.durationMonths || 0) - (b.durationMonths || 0) || (a.sortOrder || 0) - (b.sortOrder || 0));
+
+  // Hitung stok slot aktif real-time terpisah: Garansi Perpanjang vs Akun Lepas (Abaikan pool expired)
+  const poolStockMetrics = React.useMemo(() => {
+    let guaranteedSlots = 0;
+    let shortTermSlots = 0;
+    const guaranteedPools: string[] = [];
+    const shortTermPools: string[] = [];
+
+    pools.forEach((p) => {
+      const pTier = getPoolTierInfo(p);
+      if (pTier.isExpiredInactive) return; // Abaikan pool expired / nonaktif
+
+      const activeMemberCount = subscriptions.filter(
+        s => (s.poolId === p.id || s.poolName?.toLowerCase() === p.name.toLowerCase()) && s.status !== 'TERMINATED'
+      ).length;
+      const freeSlots = Math.max(0, p.totalCapacity - activeMemberCount);
+
+      if (pTier.tier === 'LONG_TERM_GUARANTEED') {
+        guaranteedSlots += freeSlots;
+        if (freeSlots > 0) guaranteedPools.push(`${p.name} (${freeSlots} slot)`);
+      } else if (pTier.tier === 'SHORT_TERM_LEPAS') {
+        shortTermSlots += freeSlots;
+        if (freeSlots > 0) shortTermPools.push(`${p.name} (${freeSlots} slot)`);
+      }
+    });
+
+    return {
+      guaranteedSlots,
+      shortTermSlots,
+      guaranteedPools,
+      shortTermPools,
+    };
+  }, [pools, subscriptions]);
 
   // 1. Template Broadcast Penawaran / Price List Lengkap
   const generatePromoBroadcast = () => {
@@ -278,9 +311,14 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
             </div>
           </div>
 
-          <span className="eyebrow-pill bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20 text-[10px]">
-            {primaryPackages.length} Paket Terdaftar
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="eyebrow-pill bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20 text-[10px] font-bold">
+              🟢 Stok: {poolStockMetrics.guaranteedSlots} Slot Siap Jual (Pool Garansi)
+            </span>
+            <span className="eyebrow-pill bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700 text-[10px]">
+              {primaryPackages.length} Paket
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
@@ -412,9 +450,14 @@ export const PriceListView: React.FC<PriceListViewProps> = ({
             </div>
           </div>
 
-          <span className="eyebrow-pill bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20 text-[10px]">
-            {secondaryPackages.length} Paket Terdaftar
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="eyebrow-pill bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20 text-[10px] font-bold">
+              ⚡ Stok: {poolStockMetrics.shortTermSlots} Slot Siap Jual (Pool Akun Lepas)
+            </span>
+            <span className="eyebrow-pill bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700 text-[10px]">
+              {secondaryPackages.length} Paket
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">

@@ -17,7 +17,10 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Copy
+  Copy,
+  ShieldCheck,
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { 
   Subscription, 
@@ -28,7 +31,7 @@ import {
   ActionChecklistItem 
 } from '@/types/subscription';
 import { PRESET_SERVICES, PresetService, buildDefaultChecklist } from '@/lib/presets';
-import { formatDate, formatDateIndo, formatCurrency, formatNumberIDR, parseCurrencyInput, getMonthlyEquivalent, getBillingCycleMonths, getWarrantyInfo } from '@/lib/utils';
+import { formatDate, formatDateIndo, formatCurrency, formatNumberIDR, parseCurrencyInput, getMonthlyEquivalent, getBillingCycleMonths, getWarrantyInfo, getPoolTierInfo } from '@/lib/utils';
 import { format, addMonths, parseISO, isValid } from 'date-fns';
 import { DatePickerField } from '@/components/ui/DatePickerField';
 
@@ -43,11 +46,11 @@ interface AddEditSubscriptionModalProps {
 }
 
 const DURATION_PACKAGES = [
-  { id: '1m', label: '1 Bulan', months: 1 },
-  { id: '2m', label: '2 Bulan', months: 2 },
-  { id: '3m', label: '3 Bulan', months: 3 },
-  { id: '6m', label: '6 Bulan', months: 6 },
-  { id: '12m', label: '1 Tahun', months: 12 },
+  { id: '1m', label: '1 Bulan', months: 1, defaultPrice: 35000, cycle: 'monthly' as BillingCycle },
+  { id: '2m', label: '2 Bulan', months: 2, defaultPrice: 60000, cycle: 'monthly' as BillingCycle },
+  { id: '3m', label: '3 Bulan', months: 3, defaultPrice: 90000, cycle: 'quarterly' as BillingCycle },
+  { id: '6m', label: '6 Bulan', months: 6, defaultPrice: 170000, cycle: 'semi_annual' as BillingCycle },
+  { id: '12m', label: '1 Tahun', months: 12, defaultPrice: 300000, cycle: 'yearly' as BillingCycle },
 ];
 
 const DRAFT_STORAGE_KEY = 'subtracker_member_form_draft';
@@ -84,6 +87,14 @@ function getInitialFormData(
   }
 
   if (preselectedPool) {
+    const pTier = getPoolTierInfo(preselectedPool);
+    const isGuaranteed = pTier.tier === 'LONG_TERM_GUARANTEED';
+    const defaultMonths = isGuaranteed ? 6 : 3;
+    const defaultDurationKey = isGuaranteed ? '6m' : '3m';
+    const defaultPrice = isGuaranteed ? 170000 : 90000;
+    const defaultCycle: BillingCycle = isGuaranteed ? 'semi_annual' : 'quarterly';
+    const defaultEndDate = format(addMonths(new Date(), defaultMonths), 'yyyy-MM-dd');
+
     return {
       name: `${preselectedPool.name} - Slot`,
       provider: preselectedPool.provider,
@@ -95,16 +106,16 @@ function getInitialFormData(
       poolName: preselectedPool.name,
       slotNumber: undefined,
       startDate: format(new Date(), 'yyyy-MM-dd'),
-      endDate: preselectedPool.masterEndDate || format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
-      price: 35000,
+      endDate: defaultEndDate,
+      price: defaultPrice,
       currency: 'IDR' as CurrencyCode,
-      billingCycle: 'monthly' as BillingCycle,
+      billingCycle: defaultCycle,
       autoRenews: false,
       avatarColor: preselectedPool.avatarColor || 'bg-blue-600',
       notes: '',
       checklist: buildDefaultChecklist(preselectedPool.name),
       reminderOffsets: [-7, -3, -1, 0, 1],
-      activeDurationPackage: preselectedPool.masterEndDate ? 'pool_end' : '1m',
+      activeDurationPackage: defaultDurationKey,
       selectedPreset: '',
       hasRestoredDraft: false,
     };
@@ -348,11 +359,11 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
       if (isValid(parsedStart)) {
         const calculatedEnd = addMonths(parsedStart, pkg.months);
         setEndDate(format(calculatedEnd, 'yyyy-MM-dd'));
-        
-        if (pkg.months === 1) setBillingCycle('monthly');
-        else if (pkg.months === 3) setBillingCycle('quarterly');
-        else if (pkg.months === 6) setBillingCycle('semi_annual');
-        else if (pkg.months === 12) setBillingCycle('yearly');
+        setBillingCycle(pkg.cycle);
+        // Otomatis sinkronkan harga sesuai tier paket jika harga masih berupa default standar
+        if (!price || [35000, 60000, 90000, 120000, 170000, 300000].includes(price)) {
+          setPrice(pkg.defaultPrice);
+        }
       }
     } catch (e) {
       console.error("Failed to calculate end date from duration package", e);
@@ -641,11 +652,26 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                       className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
                     >
                       <option value="">-- Pilih Pool / Buat Bebas --</option>
-                      {pools.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.totalCapacity} slot • {p.provider})
-                        </option>
-                      ))}
+                      {pools.map((p) => {
+                        const pTier = getPoolTierInfo(p);
+                        const isExpired = pTier.isExpiredInactive;
+                        const isGuaranteed = pTier.tier === 'LONG_TERM_GUARANTEED';
+                        const prefix = isExpired 
+                          ? '🔴 [NONAKTIF]' 
+                          : isGuaranteed 
+                          ? '🛡️ [Garansi Perpanjang]' 
+                          : '⚡ [Akun Lepas]';
+                        return (
+                          <option 
+                            key={p.id} 
+                            value={p.id}
+                            disabled={isExpired}
+                            className={isExpired ? 'text-rose-500' : isGuaranteed ? 'text-emerald-600 font-bold' : ''}
+                          >
+                            {prefix} {p.name} ({p.totalCapacity} slot • {pTier.daysRemaining < 0 ? `Expired ${Math.abs(pTier.daysRemaining)}d lalu` : `${pTier.daysRemaining}d lagi`})
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <input
@@ -674,74 +700,106 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
               </div>
 
               {/* Connected Pool Master Account Info Banner */}
-              {currentPool && (
-                <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-2 animate-in fade-in duration-150">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                      <div className="text-xs">
-                        <span className="text-slate-500 dark:text-slate-400">Akun Induk: </span>
-                        <strong className="text-slate-900 dark:text-white font-mono">{currentPool.masterEmail}</strong>
-                        {currentPool.masterEndDate && (
-                          <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold ml-2">
-                            (Exp: {currentPool.masterEndDate})
+              {currentPool && (() => {
+                const currentPoolTier = getPoolTierInfo(currentPool);
+                const isLongTermReq = activeDurationPackage === '6m' || activeDurationPackage === '12m' || billingCycle === 'semi_annual' || billingCycle === 'yearly';
+
+                return (
+                  <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-2.5 animate-in fade-in duration-150">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${currentPoolTier.isExpiredInactive ? 'bg-rose-500' : currentPoolTier.tier === 'LONG_TERM_GUARANTEED' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                        <div className="text-xs">
+                          <span className="text-slate-500 dark:text-slate-400">Akun Induk: </span>
+                          <strong className="text-slate-900 dark:text-white font-mono">{currentPool.masterEmail}</strong>
+                          {currentPool.masterEndDate && (
+                            <span className={`text-[11px] font-bold ml-2 ${currentPoolTier.isExpiredInactive ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                              ({currentPoolTier.isExpiredInactive ? `Expired: ${formatDate(currentPool.masterEndDate)}` : `Exp: ${formatDate(currentPool.masterEndDate)}`})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (memberName) {
+                            setName(`${currentPool.name} - ${memberName}`);
+                          } else {
+                            setName(`${currentPool.name} - Slot Member`);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] cursor-pointer shrink-0 transition-colors shadow-2xs self-start sm:self-auto"
+                      >
+                        Terapkan Nama Pool ke Slot
+                      </button>
+                    </div>
+
+                    {/* Compatibility Warning / Guarantee Badge */}
+                    {currentPoolTier.isExpiredInactive ? (
+                      <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
+                        <div>
+                          <strong>🔴 Pool Nonaktif (Masa Aktif Habis):</strong> Akun induk ini sudah melewati masa jatuh tempo. Harap perpanjang akun master terlebih dahulu.
+                        </div>
+                      </div>
+                    ) : isLongTermReq && currentPoolTier.tier === 'SHORT_TERM_LEPAS' ? (
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-200 text-xs flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
+                        <div className="space-y-0.5">
+                          <div className="font-extrabold text-[11px]">⚠️ Peringatan Kompatibilitas Garansi Perpanjang:</div>
+                          <div className="text-[10px] leading-relaxed">
+                            Anda memilih paket 6 Bulan / 1 Tahun, namun pool ini hanya tersisa <strong>{currentPoolTier.daysRemaining} hari</strong>. Member berisiko terkena limit 12 bulan Google Family jika akun master habis sebelum masa langganan selesai! Disarankan pilih pool dengan sisa &ge; 180 hari.
+                          </div>
+                        </div>
+                      </div>
+                    ) : isLongTermReq && currentPoolTier.tier === 'LONG_TERM_GUARANTEED' ? (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" />
+                        <div>
+                          <strong>🛡️ 100% Kompatibel Garansi Perpanjang:</strong> Pool ini tersisa {currentPoolTier.daysRemaining} hari (&ge; 180 hari), aman untuk langganan 6 bulan & 1 tahun tanpa risiko limit Google.
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Pool Master Password Row (if present) */}
+                    {currentPool.masterPassword && (
+                      <div className="flex items-center justify-between gap-2 text-xs pt-2 border-t border-blue-200/60 dark:border-blue-900/40">
+                        <div className="flex items-center gap-2 min-w-0 text-slate-600 dark:text-slate-300">
+                          <KeyRound className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">Password Master:</span>
+                          <span className="font-mono font-bold tracking-wider text-[11px] truncate text-slate-900 dark:text-white">
+                            {showPoolPassword ? currentPool.masterPassword : '••••••••••••'}
                           </span>
-                        )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setShowPoolPassword(!showPoolPassword)}
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title={showPoolPassword ? "Sembunyikan password" : "Lihat password"}
+                          >
+                            {showPoolPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(currentPool.masterPassword!);
+                              setCopiedPoolPassword(true);
+                              setTimeout(() => setCopiedPoolPassword(false), 2000);
+                            }}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+                            title="Salin Password Master"
+                          >
+                            {copiedPoolPassword ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-amber-500" />}
+                            <span>{copiedPoolPassword ? 'Tersalin' : 'Salin Pass'}</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (memberName) {
-                          setName(`${currentPool.name} - ${memberName}`);
-                        } else {
-                          setName(`${currentPool.name} - Slot Member`);
-                        }
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] cursor-pointer shrink-0 transition-colors shadow-2xs self-start sm:self-auto"
-                    >
-                      Terapkan Nama Pool ke Slot
-                    </button>
+                    )}
                   </div>
-
-                  {/* Pool Master Password Row (if present) */}
-                  {currentPool.masterPassword && (
-                    <div className="flex items-center justify-between gap-2 text-xs pt-2 border-t border-blue-200/60 dark:border-blue-900/40">
-                      <div className="flex items-center gap-2 min-w-0 text-slate-600 dark:text-slate-300">
-                        <KeyRound className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400">Password Master:</span>
-                        <span className="font-mono font-bold tracking-wider text-[11px] truncate text-slate-900 dark:text-white">
-                          {showPoolPassword ? currentPool.masterPassword : '••••••••••••'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setShowPoolPassword(!showPoolPassword)}
-                          className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          title={showPoolPassword ? "Sembunyikan password" : "Lihat password"}
-                        >
-                          {showPoolPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(currentPool.masterPassword!);
-                            setCopiedPoolPassword(true);
-                            setTimeout(() => setCopiedPoolPassword(false), 2000);
-                          }}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
-                          title="Salin Password Master"
-                        >
-                          {copiedPoolPassword ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-amber-500" />}
-                          <span>{copiedPoolPassword ? 'Tersalin' : 'Salin Pass'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Duration Package Quick Selector with Full Pool End Option */}

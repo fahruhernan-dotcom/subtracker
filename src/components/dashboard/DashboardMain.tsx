@@ -20,12 +20,24 @@ import {
   db, 
   initializeDatabaseWithSeed 
 } from '@/lib/db/dexie-db';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { 
+  syncLocalAndCloud, 
+  upsertSubscriptionCloud, 
+  deleteSubscriptionCloud, 
+  upsertPoolCloud, 
+  deletePoolCloud, 
+  upsertPackageCloud, 
+  deletePackageCloud, 
+  logActivityCloud, 
+  subscribeToCloudChanges 
+} from '@/lib/supabase-service';
 import { 
   resolveSubscriptionStatus, 
   computeDashboardMetrics, 
   generateNotificationsFromSubscriptions 
 } from '@/lib/lifecycle/state-engine';
-import { Navbar } from '@/components/layout/Navbar';
+import { Navbar, CloudSyncStatus } from '@/components/layout/Navbar';
 import { Sidebar, NavTab } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { MetricsSummary } from '@/components/dashboard/MetricsSummary';
@@ -118,6 +130,9 @@ export default function DashboardMain() {
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
   const [isExportImportOpen, setIsExportImportOpen] = useState(false);
   const [isCalendarSyncOpen, setIsCalendarSyncOpen] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>(
+    isSupabaseConfigured ? 'syncing' : 'unconfigured'
+  );
 
   // Custom Confirmation Dialog State (Zero Native Popups)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -138,11 +153,13 @@ export default function DashboardMain() {
     onConfirmAction: async () => {},
   });
 
-  // 1. Initial Load & Seed Database
+  // 1. Initial Load & Cloud Sync Database
   const loadData = async () => {
     try {
-      const { subscriptions: subs, pools: loadedPools, pricingPackages: loadedPkgs } = await initializeDatabaseWithSeed();
-      const logs = await db.activityLogs.toArray();
+      if (isSupabaseConfigured) {
+        setCloudSyncStatus('syncing');
+      }
+      const { subscriptions: subs, pools: loadedPools, packages: loadedPkgs, activityLogs: logs } = await syncLocalAndCloud();
 
       const evaluatedSubs = subs.map(s => ({
         ...s,
@@ -152,10 +169,12 @@ export default function DashboardMain() {
       setSubscriptions(evaluatedSubs);
       setPools(loadedPools);
       setPackages(loadedPkgs || []);
-      setActivityLogs(logs);
+      setActivityLogs(logs || []);
       setNotifications(generateNotificationsFromSubscriptions(evaluatedSubs));
+      setCloudSyncStatus(isSupabaseConfigured ? 'synced' : 'unconfigured');
     } catch (err) {
-      console.error('Error loading data from IndexedDB', err);
+      console.error('Error loading data from database', err);
+      setCloudSyncStatus(isSupabaseConfigured ? 'offline' : 'unconfigured');
     }
   };
 
@@ -164,8 +183,10 @@ export default function DashboardMain() {
 
     async function initialFetch() {
       try {
-        const { subscriptions: subs, pools: loadedPools, pricingPackages: loadedPkgs } = await initializeDatabaseWithSeed();
-        const logs = await db.activityLogs.toArray();
+        if (isSupabaseConfigured) {
+          setCloudSyncStatus('syncing');
+        }
+        const { subscriptions: subs, pools: loadedPools, packages: loadedPkgs, activityLogs: logs } = await syncLocalAndCloud();
 
         const evaluatedSubs = subs.map(s => ({
           ...s,
@@ -176,15 +197,26 @@ export default function DashboardMain() {
           setSubscriptions(evaluatedSubs);
           setPools(loadedPools);
           setPackages(loadedPkgs || []);
-          setActivityLogs(logs);
+          setActivityLogs(logs || []);
           setNotifications(generateNotificationsFromSubscriptions(evaluatedSubs));
+          setCloudSyncStatus(isSupabaseConfigured ? 'synced' : 'unconfigured');
         }
       } catch (err) {
-        console.error('Error loading data from IndexedDB', err);
+        console.error('Error loading data from database', err);
+        if (isCurrent) {
+          setCloudSyncStatus(isSupabaseConfigured ? 'offline' : 'unconfigured');
+        }
       }
     }
 
     initialFetch();
+
+    // Subscribe to live cloud changes from other devices/tabs
+    const unsubscribeCloud = subscribeToCloudChanges(() => {
+      if (isCurrent) {
+        loadData();
+      }
+    });
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       // Catch and neutralize errors thrown by external browser extensions
@@ -200,6 +232,7 @@ export default function DashboardMain() {
 
     return () => {
       isCurrent = false;
+      unsubscribeCloud();
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
@@ -270,6 +303,7 @@ export default function DashboardMain() {
       updated.status = resolveSubscriptionStatus(updated);
 
       await db.subscriptions.put(updated);
+      await upsertSubscriptionCloud(updated);
       await logActivity(
         editId, 
         updated.name, 
@@ -288,6 +322,7 @@ export default function DashboardMain() {
       newSub.status = resolveSubscriptionStatus(newSub);
 
       await db.subscriptions.add(newSub);
+      await upsertSubscriptionCloud(newSub);
       await logActivity(
         newSub.id, 
         newSub.name, 
@@ -306,6 +341,7 @@ export default function DashboardMain() {
   const handleUpdateSubscription = async (updated: Subscription) => {
     updated.status = resolveSubscriptionStatus(updated);
     await db.subscriptions.put(updated);
+    await upsertSubscriptionCloud(updated);
     await loadData();
     if (checklistSub && checklistSub.id === updated.id) {
       setChecklistSub(updated);
@@ -330,6 +366,7 @@ export default function DashboardMain() {
       };
 
       await db.pools.put(updatedPool);
+      await upsertPoolCloud(updatedPool);
       if (updatedPool.masterPassword) {
         await savePoolToVault(updatedPool);
       }
@@ -349,6 +386,7 @@ export default function DashboardMain() {
       };
 
       await db.pools.add(newPool);
+      await upsertPoolCloud(newPool);
       if (newPool.masterPassword) {
         await savePoolToVault(newPool);
       }
@@ -377,10 +415,13 @@ export default function DashboardMain() {
       variant: 'danger',
       onConfirmAction: async () => {
         await db.pools.delete(pool.id);
+        await deletePoolCloud(pool.id);
         await deleteFromVault(pool.id);
         // detach pool from attached members
         for (const m of attachedMembers) {
+          const detached = { ...m, poolId: undefined, poolName: undefined };
           await db.subscriptions.update(m.id, { poolId: undefined, poolName: undefined });
+          await upsertSubscriptionCloud(detached);
         }
         await logActivity(
           pool.id,
@@ -405,6 +446,7 @@ export default function DashboardMain() {
       variant: 'danger',
       onConfirmAction: async () => {
         await db.subscriptions.delete(sub.id);
+        await deleteSubscriptionCloud(sub.id);
         await logActivity(
           sub.id,
           sub.name,
@@ -442,6 +484,7 @@ export default function DashboardMain() {
         };
 
         await db.subscriptions.put(updated);
+        await upsertSubscriptionCloud(updated);
         await logActivity(
           sub.id, 
           sub.name, 
@@ -478,6 +521,7 @@ export default function DashboardMain() {
     updated.status = resolveSubscriptionStatus(updated);
 
     await db.subscriptions.put(updated);
+    await upsertSubscriptionCloud(updated);
     await logActivity(
       sub.id,
       sub.name,
@@ -513,6 +557,7 @@ export default function DashboardMain() {
     updated.status = resolveSubscriptionStatus(updated);
 
     await db.subscriptions.put(updated);
+    await upsertSubscriptionCloud(updated);
     await loadData();
   };
 
@@ -533,6 +578,7 @@ export default function DashboardMain() {
       timestamp: new Date().toISOString(),
     };
     await db.activityLogs.add(newLog);
+    await logActivityCloud(newLog);
   };
 
   const handleSavePackage = async (pkg: Partial<PricingPackage>) => {
@@ -557,6 +603,7 @@ export default function DashboardMain() {
     };
 
     await db.pricingPackages.put(newPkg);
+    await upsertPackageCloud(newPkg);
     const updated = await db.pricingPackages.orderBy('sortOrder').toArray();
     setPackages(updated);
     await logActivity(
@@ -578,6 +625,7 @@ export default function DashboardMain() {
       variant: 'danger',
       onConfirmAction: async () => {
         await db.pricingPackages.delete(pkg.id);
+        await deletePackageCloud(pkg.id);
         const updated = await db.pricingPackages.orderBy('sortOrder').toArray();
         setPackages(updated);
         await logActivity(
@@ -672,6 +720,7 @@ export default function DashboardMain() {
           notifications={notifications}
           isDarkMode={isDarkMode}
           onToggleDarkMode={handleToggleDarkMode}
+          cloudSyncStatus={cloudSyncStatus}
         />
 
         {/* Dynamic Main Body per Tab */}

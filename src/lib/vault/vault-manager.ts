@@ -1,5 +1,6 @@
 import { db } from '@/lib/db/dexie-db';
 import { AccountPool, VaultItem } from '@/types/subscription';
+import { saveVaultItemCloud, deleteVaultItemCloud } from '@/lib/supabase-service';
 
 /**
  * SubTracker Credential Vault Manager
@@ -50,6 +51,7 @@ export const savePoolToVault = async (pool: AccountPool): Promise<VaultItem | nu
   };
 
   await db.vault.put(vaultItem);
+  await saveVaultItemCloud(vaultItem);
   return vaultItem;
 };
 
@@ -83,6 +85,7 @@ export const getAllVaultItems = async (): Promise<VaultItem[]> => {
 export const deleteFromVault = async (poolId: string): Promise<void> => {
   try {
     await db.vault.where('poolId').equals(poolId).delete();
+    await deleteVaultItemCloud(poolId);
   } catch (err) {
     console.error('Failed to delete from vault:', err);
   }
