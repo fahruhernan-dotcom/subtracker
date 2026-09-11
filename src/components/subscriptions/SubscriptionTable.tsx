@@ -8,14 +8,20 @@ import {
   MessageSquare,
   UserX,
   Calendar,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
 import { formatDate, formatCurrency, getDaysLeftLabel, getMonthlyEquivalent, getWarrantyInfo } from '@/lib/utils';
 import { generateGoogleCalendarUrl } from '@/lib/calendar';
+import { MemberSortOption, isSubscriptionExpired } from '@/lib/searchSort';
 
 interface SubscriptionTableProps {
   subscriptions: Subscription[];
+  sortOption?: MemberSortOption;
+  onSortChange?: (option: MemberSortOption) => void;
   onOpenChecklist: (sub: Subscription) => void;
   onOpenWhatsAppModal: (sub: Subscription) => void;
   onEdit: (sub: Subscription) => void;
@@ -27,6 +33,8 @@ interface SubscriptionTableProps {
 
 export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
   subscriptions,
+  sortOption,
+  onSortChange,
   onOpenChecklist,
   onOpenWhatsAppModal,
   onEdit,
@@ -35,16 +43,92 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
   onRequestTerminate,
   onMoveMemberPool,
 }) => {
+  const handleToggleNameSort = () => {
+    if (!onSortChange) return;
+    if (sortOption === 'NAME_ASC') {
+      onSortChange('NAME_DESC');
+    } else {
+      onSortChange('NAME_ASC');
+    }
+  };
+
+  const handleToggleExpirySort = () => {
+    if (!onSortChange) return;
+    if (sortOption === 'EXPIRY_ASC') {
+      onSortChange('EXPIRY_DESC');
+    } else {
+      onSortChange('EXPIRY_ASC');
+    }
+  };
+
+  const handlePoolSort = () => {
+    if (!onSortChange) return;
+    onSortChange('POOL_NAME');
+  };
+
+  // Count expired accounts
+  const expiredCount = subscriptions.filter(isSubscriptionExpired).length;
+
   return (
     <div className="bezel-shell overflow-hidden">
       <div className="bezel-core overflow-x-auto">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200/80 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/40 text-slate-400 font-extrabold uppercase tracking-wider text-[10px]">
-              <th className="py-3.5 px-4">Member & Layanan</th>
-              <th className="py-3.5 px-4">Pool / Slot</th>
+              {/* Member & Layanan - Sortable */}
+              <th 
+                onClick={handleToggleNameSort}
+                className="py-3.5 px-4 cursor-pointer select-none hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                title="Urutkan berdasarkan Nama Member (A-Z / Z-A)"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Member & Layanan</span>
+                  {sortOption === 'NAME_ASC' ? (
+                    <ArrowUp className="h-3 w-3 text-blue-500" />
+                  ) : sortOption === 'NAME_DESC' ? (
+                    <ArrowDown className="h-3 w-3 text-blue-500" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-100" />
+                  )}
+                </div>
+              </th>
+
+              {/* Pool / Slot - Sortable */}
+              <th 
+                onClick={handlePoolSort}
+                className="py-3.5 px-4 cursor-pointer select-none hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                title="Urutkan berdasarkan Nama Pool"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Pool / Slot</span>
+                  {sortOption === 'POOL_NAME' ? (
+                    <ArrowUp className="h-3 w-3 text-blue-500" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-100" />
+                  )}
+                </div>
+              </th>
+
               <th className="py-3.5 px-4">Email Akun</th>
-              <th className="py-3.5 px-4">Jatuh Tempo</th>
+
+              {/* Jatuh Tempo - Sortable */}
+              <th 
+                onClick={handleToggleExpirySort}
+                className="py-3.5 px-4 cursor-pointer select-none hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                title="Urutkan berdasarkan Tanggal Jatuh Tempo (Expired otomatis di bawah)"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Jatuh Tempo</span>
+                  {sortOption === 'EXPIRY_ASC' ? (
+                    <ArrowUp className="h-3 w-3 text-blue-500" />
+                  ) : sortOption === 'EXPIRY_DESC' ? (
+                    <ArrowDown className="h-3 w-3 text-blue-500" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-100" />
+                  )}
+                </div>
+              </th>
+
               <th className="py-3.5 px-4">Status</th>
               <th className="py-3.5 px-4">Biaya</th>
               <th className="py-3.5 px-4">Checklist Kick</th>
@@ -52,17 +136,41 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-            {subscriptions.map((sub) => {
+            {subscriptions.map((sub, index) => {
               const badge = getDaysLeftLabel(sub.endDate, sub.status);
               const warranty = getWarrantyInfo(sub.billingCycle);
               const completedCount = sub.checklist.filter(i => i.completed).length;
               const totalCount = sub.checklist.length;
+              const isExpired = isSubscriptionExpired(sub);
+              const prevSub = index > 0 ? subscriptions[index - 1] : null;
+              const isFirstExpired = isExpired && prevSub && !isSubscriptionExpired(prevSub);
 
               return (
-                <tr
-                  key={sub.id}
-                  className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors"
-                >
+                <React.Fragment key={sub.id}>
+                  {/* Subtle separator when transitioning to auto-demoted expired accounts */}
+                  {isFirstExpired && (
+                    <tr className="bg-slate-100/80 dark:bg-slate-800/80 border-y border-slate-200 dark:border-slate-700">
+                      <td colSpan={8} className="py-2 px-4">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                          <span className="flex items-center gap-1.5 uppercase tracking-wider">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                            Akun Expired / Di-kick ({expiredCount} Akun di Bawah)
+                          </span>
+                          <span className="text-slate-400 font-normal">
+                            Otomatis ditempatkan di bawah agar tidak mengganggu akun aktif
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  <tr
+                    className={`transition-colors ${
+                      isExpired 
+                        ? 'opacity-65 hover:opacity-100 bg-slate-50/40 dark:bg-slate-900/40 hover:bg-slate-50/80 dark:hover:bg-slate-800/40' 
+                        : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/30'
+                    }`}
+                  >
                   {/* Member & Name */}
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
@@ -211,6 +319,7 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
                     </div>
                   </td>
                 </tr>
+                </React.Fragment>
               );
             })}
           </tbody>

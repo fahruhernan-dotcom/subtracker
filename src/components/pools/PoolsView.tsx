@@ -13,15 +13,19 @@ import {
   EyeOff,
   ShieldCheck,
   Zap,
-  AlertCircle
+  AlertCircle,
+  ArrowUpDown
 } from 'lucide-react';
 import { AccountPool, Subscription } from '@/types/subscription';
 import { PoolCard } from './PoolCard';
 import { getDaysRemaining, getPoolTierInfo, cn } from '@/lib/utils';
+import { matchesPoolSearch, sortPools, PoolSortOption } from '@/lib/searchSort';
 
 interface PoolsViewProps {
   pools: AccountPool[];
   subscriptions: Subscription[];
+  externalSearchQuery?: string;
+  onExternalSearchChange?: (q: string) => void;
   onOpenAddPoolModal: () => void;
   onEditPool: (pool: AccountPool) => void;
   onRequestDeletePool: (pool: AccountPool) => void;
@@ -35,6 +39,8 @@ interface PoolsViewProps {
 export const PoolsView: React.FC<PoolsViewProps> = ({
   pools,
   subscriptions,
+  externalSearchQuery,
+  onExternalSearchChange,
   onOpenAddPoolModal,
   onEditPool,
   onRequestDeletePool,
@@ -44,7 +50,16 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
   onMoveMemberPool,
   onReactivateMemberInPool,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const activeSearchQuery = externalSearchQuery !== undefined ? externalSearchQuery : localSearchQuery;
+  const handleSearchChange = (val: string) => {
+    setLocalSearchQuery(val);
+    if (onExternalSearchChange) {
+      onExternalSearchChange(val);
+    }
+  };
+
+  const [sortOption, setSortOption] = useState<PoolSortOption>('EXPIRY_ASC');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [tierFilter, setTierFilter] = useState<'ALL' | 'GUARANTEED' | 'SHORT_TERM' | 'EXPIRED'>('ALL');
   const [showAllModalCost, setShowAllModalCost] = useState<boolean>(false);
@@ -103,13 +118,12 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
   }, [pools, subscriptions]);
 
   const filteredPools = useMemo(() => {
-    return pools.filter((p) => {
-      const matchesSearch = 
-        !searchQuery ||
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.masterEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.provider.toLowerCase().includes(searchQuery.toLowerCase());
+    const matched = pools.filter((p) => {
+      const poolMembers = subscriptions.filter(
+        s => (s.poolId === p.id || s.poolName?.toLowerCase() === p.name.toLowerCase())
+      );
 
+      const matchesSearch = matchesPoolSearch(p, poolMembers, activeSearchQuery);
       const matchesCat = categoryFilter === 'ALL' || p.category === categoryFilter;
 
       const tierInfo = getPoolTierInfo(p);
@@ -124,7 +138,9 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
 
       return matchesSearch && matchesCat && matchesTier;
     });
-  }, [pools, searchQuery, categoryFilter, tierFilter]);
+
+    return sortPools(matched, subscriptions, sortOption);
+  }, [pools, subscriptions, activeSearchQuery, categoryFilter, tierFilter, sortOption]);
 
   return (
     <div className="space-y-6">
@@ -330,14 +346,23 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari pool, email akun induk, atau provider..."
+            value={activeSearchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Cari pool, email akun induk, atau nama member..."
             className="w-full pl-9 pr-3.5 py-2 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 shadow-xs"
           />
+          {activeSearchQuery && (
+            <button
+              type="button"
+              onClick={() => handleSearchChange('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           {/* Privacy Eye Toggle for Master Cost */}
           <button
             type="button"
@@ -348,6 +373,22 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
             {showAllModalCost ? <EyeOff className="h-3.5 w-3.5 text-rose-500" /> : <Eye className="h-3.5 w-3.5 text-slate-400" />}
             <span className="hidden sm:inline">{showAllModalCost ? 'Sembunyikan Modal' : 'Lihat Modal'}</span>
           </button>
+
+          {/* Sort Dropdown for Pools */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-xs">
+            <ArrowUpDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as PoolSortOption)}
+              className="bg-transparent focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="EXPIRY_ASC">📅 Masa Aktif Induk Terdekat (Expired di Bawah)</option>
+              <option value="EXPIRY_DESC">⏳ Masa Aktif Induk Terjauh</option>
+              <option value="AVAILABLE_SLOTS">🟢 Sisa Slot Kosong Terbanyak</option>
+              <option value="NAME_ASC">🏢 Nama Pool (A - Z)</option>
+              <option value="LATEST">✨ Terbaru Dibuat</option>
+            </select>
+          </div>
 
           <select
             value={categoryFilter}

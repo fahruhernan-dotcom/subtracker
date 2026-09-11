@@ -7,8 +7,14 @@ import {
   List, 
   AlertOctagon, 
   Users, 
-  Building
+  Building,
+  ArrowUpDown
 } from 'lucide-react';
+import { 
+  MemberSortOption, 
+  matchesSubscriptionSearch, 
+  sortSubscriptions 
+} from '@/lib/searchSort';
 import { 
   Subscription, 
   AccountPool,
@@ -110,6 +116,7 @@ export default function DashboardMain() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [sortOption, setSortOption] = useState<MemberSortOption>('EXPIRY_ASC');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   
   const systemDarkMode = useSyncExternalStore(
@@ -293,20 +300,16 @@ export default function DashboardMain() {
   }, [subscriptions]);
 
   const filteredSubscriptions = useMemo(() => {
-    return subscriptions.filter(s => {
-      const matchesSearch = 
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.accountEmail && s.accountEmail.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.memberName && s.memberName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.poolName && s.poolName.toLowerCase().includes(searchQuery.toLowerCase()));
-
+    const matched = subscriptions.filter(s => {
+      const matchesSearch = matchesSubscriptionSearch(s, searchQuery);
       const matchesStatus = statusFilter === 'ALL' || s.status === statusFilter;
       const matchesCategory = categoryFilter === 'ALL' || s.category === categoryFilter;
 
       return matchesSearch && matchesStatus && matchesCategory;
     });
-  }, [subscriptions, searchQuery, statusFilter, categoryFilter]);
+
+    return sortSubscriptions(matched, sortOption);
+  }, [subscriptions, searchQuery, statusFilter, categoryFilter, sortOption]);
 
   // 3. Database Mutations - Members
   const handleSaveSubscription = async (
@@ -911,6 +914,23 @@ export default function DashboardMain() {
                     </h2>
 
                     <div className="flex items-center gap-2">
+                      {/* Sort Dropdown */}
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                        <ArrowUpDown className="h-3 w-3 text-blue-500 shrink-0" />
+                        <select
+                          value={sortOption}
+                          onChange={(e) => setSortOption(e.target.value as MemberSortOption)}
+                          className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
+                        >
+                          <option value="EXPIRY_ASC">📅 Jatuh Tempo Terdekat (Expired di Bawah)</option>
+                          <option value="EXPIRY_DESC">⏳ Masa Aktif Terjauh</option>
+                          <option value="LATEST">✨ Terbaru Ditambahkan (Latest)</option>
+                          <option value="NAME_ASC">🔤 Nama Member (A - Z)</option>
+                          <option value="NAME_DESC">🔤 Nama Member (Z - A)</option>
+                          <option value="POOL_NAME">🏢 Urutkan per Pool</option>
+                        </select>
+                      </div>
+
                       <button
                         onClick={() => setViewMode('grid')}
                         className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
@@ -965,18 +985,22 @@ export default function DashboardMain() {
                           onRequestDelete={triggerDeleteMemberConfirm}
                           onQuickRenew={(s) => setRenewSub(s)}
                           onRequestTerminate={triggerKickConfirm}
+                          onMoveMemberPool={(s) => setMovingSub(s)}
                         />
                       ))}
                     </div>
                   ) : (
                     <SubscriptionTable
                       subscriptions={filteredSubscriptions}
+                      sortOption={sortOption}
+                      onSortChange={setSortOption}
                       onOpenChecklist={(s) => setChecklistSub(s)}
                       onOpenWhatsAppModal={(s) => setWaModalSub(s)}
                       onEdit={(s) => { setEditingSub(s); setPreselectedPool(null); setIsAddEditOpen(true); }}
                       onRequestDelete={triggerDeleteMemberConfirm}
                       onQuickRenew={(s) => setRenewSub(s)}
                       onRequestTerminate={triggerKickConfirm}
+                      onMoveMemberPool={(s) => setMovingSub(s)}
                     />
                   )}
                 </div>
@@ -1003,6 +1027,8 @@ export default function DashboardMain() {
             <PoolsView
               pools={pools}
               subscriptions={subscriptions}
+              externalSearchQuery={searchQuery}
+              onExternalSearchChange={setSearchQuery}
               onOpenAddPoolModal={() => { setEditingPool(null); setIsAddPoolOpen(true); }}
               onEditPool={(pool) => { setEditingPool(pool); setIsAddPoolOpen(true); }}
               onRequestDeletePool={triggerDeletePoolConfirm}
@@ -1055,7 +1081,24 @@ export default function DashboardMain() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  {/* Sort Dropdown */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                    <ArrowUpDown className="h-3 w-3 text-blue-500 shrink-0" />
+                    <select
+                      value={sortOption}
+                      onChange={(e) => setSortOption(e.target.value as MemberSortOption)}
+                      className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
+                    >
+                      <option value="EXPIRY_ASC">📅 Jatuh Tempo Terdekat (Expired di Bawah)</option>
+                      <option value="EXPIRY_DESC">⏳ Masa Aktif Terjauh</option>
+                      <option value="LATEST">✨ Terbaru Ditambahkan (Latest)</option>
+                      <option value="NAME_ASC">🔤 Nama Member (A - Z)</option>
+                      <option value="NAME_DESC">🔤 Nama Member (Z - A)</option>
+                      <option value="POOL_NAME">🏢 Urutkan per Pool</option>
+                    </select>
+                  </div>
+
                   <select
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
@@ -1143,6 +1186,8 @@ export default function DashboardMain() {
               ) : (
                 <SubscriptionTable
                   subscriptions={filteredSubscriptions}
+                  sortOption={sortOption}
+                  onSortChange={setSortOption}
                   onOpenChecklist={(s) => setChecklistSub(s)}
                   onOpenWhatsAppModal={(s) => setWaModalSub(s)}
                   onEdit={(s) => { setEditingSub(s); setPreselectedPool(null); setIsAddEditOpen(true); }}
