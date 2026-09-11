@@ -62,15 +62,63 @@ export default function RootLayout({
                     });
                   }
 
-                  // 3. Suppress console noise from extensions
+                  // 3. Suppress runtime errors and console noise injected by third-party browser extensions
+                  window.addEventListener('error', function(event) {
+                    var filename = event.filename || (event.error && event.error.stack) || '';
+                    var message = event.message || (event.error && event.error.message) || '';
+                    if (
+                      filename.indexOf('chrome-extension://') !== -1 ||
+                      filename.indexOf('moz-extension://') !== -1 ||
+                      message.indexOf('M_ID') !== -1 ||
+                      message.indexOf('bis_skin_checked') !== -1
+                    ) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      event.stopImmediatePropagation();
+                      return true;
+                    }
+                  }, true);
+
+                  window.addEventListener('unhandledrejection', function(event) {
+                    var reason = event.reason;
+                    var reasonStr = (reason && (reason.stack || reason.message)) ? (reason.stack || reason.message) : '';
+                    if (
+                      reasonStr.indexOf('chrome-extension://') !== -1 ||
+                      reasonStr.indexOf('moz-extension://') !== -1 ||
+                      reasonStr.indexOf('M_ID') !== -1 ||
+                      reasonStr.indexOf('bis_skin_checked') !== -1
+                    ) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      event.stopImmediatePropagation();
+                    }
+                  }, true);
+
+                  var origOnError = window.onerror;
+                  window.onerror = function(msg, url, lineNo, columnNo, error) {
+                    var urlStr = (url || '') + (error && error.stack ? error.stack : '');
+                    var msgStr = typeof msg === 'string' ? msg : (error && error.message ? error.message : '');
+                    if (
+                      urlStr.indexOf('chrome-extension://') !== -1 ||
+                      urlStr.indexOf('moz-extension://') !== -1 ||
+                      msgStr.indexOf('M_ID') !== -1 ||
+                      msgStr.indexOf('bis_skin_checked') !== -1
+                    ) {
+                      return true;
+                    }
+                    if (origOnError) {
+                      return origOnError.apply(this, arguments);
+                    }
+                  };
+
                   var origError = console.error;
                   console.error = function() {
                     for (var k = 0; k < arguments.length; k++) {
                       var arg = arguments[k];
-                      if (typeof arg === 'string' && (arg.indexOf('bis_skin_checked') !== -1 || arg.indexOf('M_ID') !== -1)) {
+                      if (typeof arg === 'string' && (arg.indexOf('bis_skin_checked') !== -1 || arg.indexOf('M_ID') !== -1 || arg.indexOf('chrome-extension://') !== -1)) {
                         return;
                       }
-                      if (arg && typeof arg === 'object' && arg.message && typeof arg.message === 'string' && (arg.message.indexOf('bis_skin_checked') !== -1 || arg.message.indexOf('M_ID') !== -1)) {
+                      if (arg && typeof arg === 'object' && arg.message && typeof arg.message === 'string' && (arg.message.indexOf('bis_skin_checked') !== -1 || arg.message.indexOf('M_ID') !== -1 || arg.message.indexOf('chrome-extension://') !== -1)) {
                         return;
                       }
                     }

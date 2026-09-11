@@ -218,22 +218,41 @@ export default function DashboardMain() {
       }
     });
 
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      // Catch and neutralize errors thrown by external browser extensions
+    const handleExtensionError = (event: ErrorEvent) => {
+      const filename = event.filename || (event.error && event.error.stack) || '';
+      const message = event.message || (event.error && event.error.message) || '';
       if (
-        (event.reason && typeof event.reason.stack === 'string' && event.reason.stack.includes('chrome-extension://')) ||
-        (event.reason?.message && event.reason.message.includes('M_ID'))
+        filename.includes('chrome-extension://') ||
+        filename.includes('moz-extension://') ||
+        message.includes('M_ID') ||
+        message.includes('bis_skin_checked')
       ) {
         event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
       }
     };
 
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // Catch and neutralize errors thrown by external browser extensions
+      if (
+        (event.reason && typeof event.reason.stack === 'string' && (event.reason.stack.includes('chrome-extension://') || event.reason.stack.includes('moz-extension://'))) ||
+        (event.reason?.message && (event.reason.message.includes('M_ID') || event.reason.message.includes('bis_skin_checked')))
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+      }
+    };
+
+    window.addEventListener('error', handleExtensionError, true);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection, true);
 
     return () => {
       isCurrent = false;
       unsubscribeCloud();
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleExtensionError, true);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true);
     };
   }, []);
 
