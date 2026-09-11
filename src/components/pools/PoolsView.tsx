@@ -28,6 +28,8 @@ interface PoolsViewProps {
   onAddMemberToPool: (pool: AccountPool) => void;
   onOpenWhatsAppModal: (sub: Subscription) => void;
   onOpenMemberChecklist: (sub: Subscription) => void;
+  onMoveMemberPool?: (sub: Subscription) => void;
+  onReactivateMemberInPool?: (sub: Subscription, pool: AccountPool) => void;
 }
 
 export const PoolsView: React.FC<PoolsViewProps> = ({
@@ -39,6 +41,8 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
   onAddMemberToPool,
   onOpenWhatsAppModal,
   onOpenMemberChecklist,
+  onMoveMemberPool,
+  onReactivateMemberInPool,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
@@ -397,6 +401,8 @@ export const PoolsView: React.FC<PoolsViewProps> = ({
               onRequestDeletePool={onRequestDeletePool}
               onOpenWhatsAppModal={onOpenWhatsAppModal}
               onOpenMemberChecklist={onOpenMemberChecklist}
+              onMoveMemberPool={onMoveMemberPool}
+              onReactivateMemberInPool={onReactivateMemberInPool}
               showModalCostByDefault={showAllModalCost}
             />
           ))}

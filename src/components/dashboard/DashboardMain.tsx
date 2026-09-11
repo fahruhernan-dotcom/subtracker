@@ -14,7 +14,8 @@ import {
   AccountPool,
   ActivityLog, 
   AppNotification,
-  PricingPackage
+  PricingPackage,
+  BillingCycle
 } from '@/types/subscription';
 import { 
   db, 
@@ -37,6 +38,8 @@ import {
   computeDashboardMetrics, 
   generateNotificationsFromSubscriptions 
 } from '@/lib/lifecycle/state-engine';
+import { formatDate, getDaysRemaining } from '@/lib/utils';
+import { format, parseISO, addMonths, isValid } from 'date-fns';
 import { Navbar, CloudSyncStatus } from '@/components/layout/Navbar';
 import { Sidebar, NavTab } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
@@ -50,6 +53,7 @@ import { SubscriptionTable } from '@/components/subscriptions/SubscriptionTable'
 import { ActionChecklistModal } from '@/components/subscriptions/ActionChecklistModal';
 import { AddEditSubscriptionModal } from '@/components/subscriptions/AddEditSubscriptionModal';
 import { QuickRenewModal } from '@/components/subscriptions/QuickRenewModal';
+import { MoveMemberPoolModal } from '@/components/pools/MoveMemberPoolModal';
 import { WhatsAppMessageModal } from '@/components/subscriptions/WhatsAppMessageModal';
 import { NotificationCenterDrawer } from '@/components/subscriptions/NotificationCenterDrawer';
 import { ExportImportModal } from '@/components/subscriptions/ExportImportModal';
@@ -126,6 +130,7 @@ export default function DashboardMain() {
   const [editingPool, setEditingPool] = useState<AccountPool | null>(null);
   const [checklistSub, setChecklistSub] = useState<Subscription | null>(null);
   const [renewSub, setRenewSub] = useState<Subscription | null>(null);
+  const [movingSub, setMovingSub] = useState<Subscription | null>(null);
   const [waModalSub, setWaModalSub] = useState<Subscription | null>(null);
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
   const [isExportImportOpen, setIsExportImportOpen] = useState(false);
@@ -141,7 +146,7 @@ export default function DashboardMain() {
     description: string;
     targetName: string;
     confirmLabel: string;
-    variant: 'danger' | 'warning';
+    variant: 'danger' | 'warning' | 'info';
     onConfirmAction: () => Promise<void>;
   }>({
     isOpen: false,
@@ -479,19 +484,19 @@ export default function DashboardMain() {
     });
   };
 
-  // Kick & Terminate Flow with Custom Dialog
+  // Kick & Terminate Flow with Custom Dialog (Soft-Kick Archive Preservation)
   const triggerKickConfirm = (sub: Subscription) => {
     const uncompletedTasks = sub.checklist.filter(c => !c.completed).length;
     const isFullyChecked = uncompletedTasks === 0;
 
     setConfirmDialog({
       isOpen: true,
-      title: isFullyChecked ? 'Konfirmasi Kick & Kosongkan Slot' : 'Peringatan: Checklist Belum Lengkap!',
+      title: isFullyChecked ? 'Konfirmasi Kick & Simpan di Arsip' : 'Peringatan: Checklist Belum Lengkap!',
       description: isFullyChecked
-        ? `Akses ${sub.memberName || 'member'} di ${sub.name} telah diputus dan checklist selesai. Slot siap dikosongkan untuk pembeli baru.`
-        : `Masih ada ${uncompletedTasks} tindakan admin yang belum dicentang. Pastikan akun ${sub.accountEmail} sudah benar-benar di-kick dari Family / Admin Console agar tidak ada akses bocor!`,
+        ? `Akses ${sub.memberName || 'member'} di ${sub.name} telah diputus dan checklist selesai. Slot siap dikosongkan untuk pembeli baru. Data profil, no WhatsApp, dan histori member tetap tersimpan aman di arsip pool.`
+        : `Masih ada ${uncompletedTasks} tindakan admin yang belum dicentang. Pastikan akun ${sub.accountEmail} sudah benar-benar di-kick dari Family / Admin Console agar tidak ada akses bocor! Data member tetap tersimpan di arsip riwayat pool.`,
       targetName: `${sub.memberName} • ${sub.accountEmail}`,
-      confirmLabel: isFullyChecked ? '✓ Selesai & Tandai Kosong' : 'Tetap Kick & Kosongkan Slot',
+      confirmLabel: isFullyChecked ? '✓ Kick & Simpan di Arsip' : 'Tetap Kick & Simpan di Arsip',
       variant: isFullyChecked ? 'warning' : 'danger',
       onConfirmAction: async () => {
         const completedChecklist = sub.checklist.map(c => ({ ...c, completed: true }));
@@ -500,6 +505,7 @@ export default function DashboardMain() {
           status: 'TERMINATED',
           checklist: completedChecklist,
           updatedAt: new Date().toISOString(),
+          terminatedAt: new Date().toISOString(),
         };
 
         await db.subscriptions.put(updated);
@@ -509,7 +515,7 @@ export default function DashboardMain() {
           sub.name, 
           sub.memberName,
           'MEMBER_KICKED', 
-          `Member ${sub.memberName} (${sub.accountEmail}) telah di-kick dari sistem dan slot ditandai kosong`
+          `Member ${sub.memberName} (${sub.accountEmail}) telah di-kick dari pool "${sub.poolName || sub.name}". Slot dikosongkan, profil tersimpan di riwayat arsip.`
         );
         await loadData();
         setChecklistSub(null);
@@ -550,6 +556,94 @@ export default function DashboardMain() {
     );
     await loadData();
     setRenewSub(null);
+  };
+
+  // Move Member Pool Handler (Transfer across pools without losing data)
+  const handleConfirmMovePool = async (
+    sub: Subscription,
+    targetPool: AccountPool,
+    transferOption: 'keep_dates' | 'renew',
+    newDurationMonths?: number,
+    newBillingCycle?: BillingCycle
+  ) => {
+    const oldPoolName = sub.poolName || 'Tanpa Pool';
+    const now = new Date().toISOString();
+
+    let newStartDate = sub.startDate;
+    let newEndDate = sub.endDate;
+
+    if (transferOption === 'renew' && newDurationMonths) {
+      const base = sub.status === 'TERMINATED' || getDaysRemaining(sub.endDate) < 0
+        ? new Date()
+        : parseISO(sub.endDate);
+      const validBase = isValid(base) ? base : new Date();
+      newStartDate = format(validBase, 'yyyy-MM-dd');
+      newEndDate = format(addMonths(validBase, newDurationMonths), 'yyyy-MM-dd');
+    }
+
+    const updated: Subscription = {
+      ...sub,
+      poolId: targetPool.id,
+      poolName: targetPool.name,
+      startDate: newStartDate,
+      endDate: newEndDate,
+      billingCycle: newBillingCycle || sub.billingCycle,
+      status: 'ACTIVE',
+      updatedAt: now,
+      checklist: sub.checklist.map(c => ({ ...c, completed: false, completedAt: undefined })),
+    };
+    updated.status = resolveSubscriptionStatus(updated);
+
+    await db.subscriptions.put(updated);
+    await upsertSubscriptionCloud(updated);
+    await logActivity(
+      sub.id,
+      updated.name,
+      sub.memberName,
+      'MEMBER_SWAPPED',
+      `Member ${sub.memberName} (${sub.accountEmail}) dipindahkan dari "${oldPoolName}" ke "${targetPool.name}" (${transferOption === 'renew' ? `Perpanjang ${newDurationMonths} bln s/d ${formatDate(newEndDate)}` : `Masa aktif s/d ${formatDate(newEndDate)}`}). Data profil tersimpan utuh.`
+    );
+
+    await loadData();
+    setMovingSub(null);
+  };
+
+  // Reactivate Terminated Member in Same Pool
+  const handleReactivateInPool = async (sub: Subscription, pool: AccountPool) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Aktifkan Kembali Member di Pool Ini?',
+      description: `Member ${sub.memberName} (${sub.accountEmail}) akan diaktifkan kembali dan mengisi 1 slot di ${pool.name}. Anda dapat memperpanjang masa aktifnya setelah ini.`,
+      targetName: `${sub.memberName} • ${pool.name}`,
+      confirmLabel: '✓ Aktifkan Kembali',
+      variant: 'info',
+      onConfirmAction: async () => {
+        const now = new Date().toISOString();
+        const updated: Subscription = {
+          ...sub,
+          poolId: pool.id,
+          poolName: pool.name,
+          status: 'ACTIVE',
+          updatedAt: now,
+          checklist: sub.checklist.map(c => ({ ...c, completed: false, completedAt: undefined })),
+        };
+        updated.status = resolveSubscriptionStatus(updated);
+
+        await db.subscriptions.put(updated);
+        await upsertSubscriptionCloud(updated);
+
+        await logActivity(
+          sub.id,
+          updated.name,
+          sub.memberName,
+          'MEMBER_SWAPPED',
+          `Member ${sub.memberName} (${sub.accountEmail}) diaktifkan kembali ke slot ${pool.name}`
+        );
+
+        await loadData();
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleToggleChecklistItem = async (subId: string, itemId: string) => {
@@ -919,6 +1013,8 @@ export default function DashboardMain() {
               }}
               onOpenWhatsAppModal={(sub) => setWaModalSub(sub)}
               onOpenMemberChecklist={(sub) => setChecklistSub(sub)}
+              onMoveMemberPool={(sub) => setMovingSub(sub)}
+              onReactivateMemberInPool={handleReactivateInPool}
             />
           )}
 
@@ -941,6 +1037,7 @@ export default function DashboardMain() {
                 onToggleChecklistItem={handleToggleChecklistItem}
                 onRequestTerminate={triggerKickConfirm}
                 onQuickRenew={(sub) => setRenewSub(sub)}
+                onMoveMemberPool={(sub) => setMovingSub(sub)}
               />
             </div>
           )}
@@ -1039,6 +1136,7 @@ export default function DashboardMain() {
                       onRequestDelete={triggerDeleteMemberConfirm}
                       onQuickRenew={(s) => setRenewSub(s)}
                       onRequestTerminate={triggerKickConfirm}
+                      onMoveMemberPool={(s) => setMovingSub(s)}
                     />
                   ))}
                 </div>
@@ -1051,6 +1149,7 @@ export default function DashboardMain() {
                   onRequestDelete={triggerDeleteMemberConfirm}
                   onQuickRenew={(s) => setRenewSub(s)}
                   onRequestTerminate={triggerKickConfirm}
+                  onMoveMemberPool={(s) => setMovingSub(s)}
                 />
               )}
             </div>
@@ -1125,6 +1224,7 @@ export default function DashboardMain() {
         onOpenWhatsAppModal={(s) => setWaModalSub(s)}
         onRequestTerminate={triggerKickConfirm}
         onRenew={(s) => setRenewSub(s)}
+        onMoveMemberPool={(s) => setMovingSub(s)}
       />
 
       <QuickRenewModal
@@ -1134,6 +1234,16 @@ export default function DashboardMain() {
         isOpen={!!renewSub}
         onClose={() => setRenewSub(null)}
         onConfirmRenew={handleConfirmRenew}
+      />
+
+      <MoveMemberPoolModal
+        key={movingSub?.id || 'move-none'}
+        subscription={movingSub}
+        pools={pools}
+        subscriptions={subscriptions}
+        isOpen={!!movingSub}
+        onClose={() => setMovingSub(null)}
+        onConfirmMove={handleConfirmMovePool}
       />
 
       <WhatsAppMessageModal

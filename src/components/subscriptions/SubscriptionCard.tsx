@@ -23,7 +23,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   Info,
-  Sparkles
+  Sparkles,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Subscription, ActivityLog } from '@/types/subscription';
 import { formatDate, formatCurrency, getDaysLeftLabel, getMonthlyEquivalent, getWarrantyInfo } from '@/lib/utils';
@@ -38,6 +39,7 @@ interface SubscriptionCardProps {
   onRequestDelete: (sub: Subscription) => void;
   onQuickRenew: (sub: Subscription) => void;
   onRequestTerminate: (sub: Subscription) => void;
+  onMoveMemberPool?: (sub: Subscription) => void;
 }
 
 export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
@@ -49,6 +51,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   onRequestDelete,
   onQuickRenew,
   onRequestTerminate,
+  onMoveMemberPool,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -256,15 +259,27 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
           {/* Right Actions (Quick Renew & Dropdown) */}
           <div className="flex items-center gap-1.5 relative">
-            <button
-              type="button"
-              onClick={() => onQuickRenew(sub)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
-              title="Perpanjang masa aktif slot"
-            >
-              <RefreshCw className="h-3 w-3" />
-              <span>Perpanjang</span>
-            </button>
+            {sub.status === 'TERMINATED' && onMoveMemberPool ? (
+              <button
+                type="button"
+                onClick={() => onMoveMemberPool(sub)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-500/20 transition-all cursor-pointer"
+                title="Alokasikan kembali member ini ke pool baru"
+              >
+                <ArrowRightLeft className="h-3 w-3" />
+                <span>Pindah / Re-alokasi</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onQuickRenew(sub)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
+                title="Perpanjang masa aktif slot"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Perpanjang</span>
+              </button>
+            )}
 
             {/* Dropdown Menu Toggle */}
             <div className="relative">
@@ -280,6 +295,17 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                   <div className="absolute right-0 bottom-full mb-1 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-50 p-1 text-xs animate-in zoom-in-95 duration-100">
+                    {onMoveMemberPool && (
+                      <button
+                        type="button"
+                        onClick={() => { setMenuOpen(false); onMoveMemberPool(sub); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold"
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
+                        <span>Pindah ke Pool Lain</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => { setMenuOpen(false); onEdit(sub); }}

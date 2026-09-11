@@ -20,7 +20,11 @@ import {
   TrendingUp,
   ShieldCheck,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  ArrowRightLeft,
+  RotateCcw,
+  Archive,
+  Info
 } from 'lucide-react';
 import { AccountPool, Subscription } from '@/types/subscription';
 import { formatDate, getDaysRemaining, formatCurrency, getPoolTierInfo, cn } from '@/lib/utils';
@@ -33,6 +37,8 @@ interface PoolCardProps {
   onRequestDeletePool: (pool: AccountPool) => void;
   onOpenWhatsAppModal: (sub: Subscription) => void;
   onOpenMemberChecklist: (sub: Subscription) => void;
+  onMoveMemberPool?: (sub: Subscription) => void;
+  onReactivateMemberInPool?: (sub: Subscription, pool: AccountPool) => void;
   showModalCostByDefault?: boolean;
 }
 
@@ -44,12 +50,15 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   onRequestDeletePool,
   onOpenWhatsAppModal,
   onOpenMemberChecklist,
+  onMoveMemberPool,
+  onReactivateMemberInPool,
   showModalCostByDefault = false,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showModalCost, setShowModalCost] = useState(showModalCostByDefault);
   const [copiedField, setCopiedField] = useState<'email' | 'password' | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [rosterTab, setRosterTab] = useState<'ACTIVE' | 'KICKED'>('ACTIVE');
 
   useEffect(() => {
     setShowModalCost(showModalCostByDefault);
@@ -58,6 +67,11 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   // Members allocated to this pool (active & expiring)
   const poolMembers = subscriptions.filter(
     s => (s.poolId === pool.id || s.poolName?.toLowerCase() === pool.name.toLowerCase()) && s.status !== 'TERMINATED'
+  );
+
+  // Former / kicked members of this pool (soft-kick archive)
+  const kickedMembers = subscriptions.filter(
+    s => (s.poolId === pool.id || s.poolName?.toLowerCase() === pool.name.toLowerCase()) && s.status === 'TERMINATED'
   );
 
   const activeCount = poolMembers.length;
@@ -426,61 +440,200 @@ export const PoolCard: React.FC<PoolCardProps> = ({
         {/* EXPANDABLE MEMBER ROSTER DRAWER */}
         {isExpanded && (
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <UserCheck className="h-3.5 w-3.5 text-blue-500" />
-                Daftar Member Aktif di Pool Ini ({poolMembers.length} / {pool.totalCapacity}):
-              </span>
+            {/* Roster Tab Switcher */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 w-fit">
+                <button
+                  type="button"
+                  onClick={() => setRosterTab('ACTIVE')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                    rosterTab === 'ACTIVE'
+                      ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  )}
+                >
+                  <UserCheck className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Member Aktif ({poolMembers.length}/{pool.totalCapacity})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRosterTab('KICKED')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                    rosterTab === 'KICKED'
+                      ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  )}
+                >
+                  <Archive className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Riwayat Di-kick ({kickedMembers.length})</span>
+                </button>
+              </div>
+
               <span className="text-[10px] text-slate-400">
-                Klik chevron untuk aksi checklist kick atau kirim WA
+                {rosterTab === 'ACTIVE' 
+                  ? 'Gunakan ikon ⇄ untuk pindah pool atau > untuk checklist kick'
+                  : 'Data profil tersimpan aman, klik ⇄ untuk alokasi ke pool baru'}
               </span>
             </div>
 
-            {poolMembers.length === 0 ? (
-              <div className="py-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/30 text-xs text-slate-400 font-medium">
-                Belum ada member yang dialokasikan ke pool ini.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {poolMembers.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group/item"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <div className="font-extrabold text-slate-900 dark:text-white truncate">
-                        {member.memberName || 'Member'}
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate font-mono mt-0.5">
-                        {member.accountEmail}
-                      </div>
-                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
-                        Exp: {formatDate(member.endDate)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {member.clientPhone && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenWhatsAppModal(member)}
-                          className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
-                          title="Kirim Pesan WA"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onOpenMemberChecklist(member)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-                        title="Buka Checklist Kick"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
+            {/* TAB 1: ACTIVE MEMBERS */}
+            {rosterTab === 'ACTIVE' && (
+              <>
+                {poolMembers.length === 0 ? (
+                  <div className="py-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/30 text-xs text-slate-400 font-medium">
+                    Belum ada member aktif yang dialokasikan ke pool ini.
                   </div>
-                ))}
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {poolMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group/item"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="font-extrabold text-slate-900 dark:text-white truncate">
+                            {member.memberName || 'Member'}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate font-mono mt-0.5">
+                            {member.accountEmail}
+                          </div>
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
+                            Exp: {formatDate(member.endDate)}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* WhatsApp Button */}
+                          {member.clientPhone && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenWhatsAppModal(member)}
+                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                              title="Kirim Pesan WA"
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          {/* Pindah Pool Button */}
+                          {onMoveMemberPool && (
+                            <button
+                              type="button"
+                              onClick={() => onMoveMemberPool(member)}
+                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                              title="Pindahkan Member ke Pool Lain"
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          {/* Checklist SOP Kick Button */}
+                          <button
+                            type="button"
+                            onClick={() => onOpenMemberChecklist(member)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                            title="Buka Checklist Kick"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* TAB 2: FORMER / KICKED MEMBERS (SOFT-KICK ARCHIVE) */}
+            {rosterTab === 'KICKED' && (
+              <div className="space-y-3">
+                {/* Educational Banner */}
+                <div className="p-3 rounded-2xl bg-amber-500/10 dark:bg-amber-950/20 border border-amber-500/25 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    <strong>🔒 Data Member Tetap Tersimpan:</strong> Member di bawah telah di-kick dari grup Google Family (slot kosong & bebas dijual). Nomor WhatsApp, riwayat transaksi, dan profil akunnya <strong>tetap tersimpan utuh di arsip</strong> dan dapat dipindahkan / diaktifkan kembali sewaktu-waktu.
+                  </div>
+                </div>
+
+                {kickedMembers.length === 0 ? (
+                  <div className="py-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/30 text-xs text-slate-400 font-medium">
+                    Belum ada riwayat member yang di-kick dari pool ini.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {kickedMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="p-3 rounded-2xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/50 text-xs space-y-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-extrabold text-slate-900 dark:text-white truncate">
+                                {member.memberName || 'Member'}
+                              </span>
+                              <span className="eyebrow-pill text-[8px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold">
+                                Sudah Di-kick
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+                              {member.accountEmail} {member.clientPhone ? `• ${member.clientPhone}` : ''}
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                              Berakhir: {formatDate(member.endDate)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Former Member Quick Actions */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-750 gap-1.5">
+                          {member.clientPhone && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenWhatsAppModal(member)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-bold text-[11px] transition-colors cursor-pointer"
+                              title="Hubungi via WhatsApp"
+                            >
+                              <MessageSquare className="h-3 w-3" />
+                              <span>WA</span>
+                            </button>
+                          )}
+
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            {/* Reactivate in same pool if slots available */}
+                            {onReactivateMemberInPool && availableSlots > 0 && !tierInfo.isExpiredInactive && (
+                              <button
+                                type="button"
+                                onClick={() => onReactivateMemberInPool(member, pool)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 font-bold text-[10px] transition-colors cursor-pointer"
+                                title="Aktifkan kembali member ini di slot pool ini"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                <span>Aktifkan di Sini</span>
+                              </button>
+                            )}
+
+                            {/* Move to another pool */}
+                            {onMoveMemberPool && (
+                              <button
+                                type="button"
+                                onClick={() => onMoveMemberPool(member)}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer"
+                                title="Pindahkan atau alokasikan ulang ke pool lain"
+                              >
+                                <ArrowRightLeft className="h-3 w-3" />
+                                <span>Pindah ke Pool Lain</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

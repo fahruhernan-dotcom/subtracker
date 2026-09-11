@@ -7,7 +7,8 @@ import {
   Trash2, 
   MessageSquare,
   UserX,
-  Calendar
+  Calendar,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
 import { formatDate, formatCurrency, getDaysLeftLabel, getMonthlyEquivalent, getWarrantyInfo } from '@/lib/utils';
@@ -21,6 +22,7 @@ interface SubscriptionTableProps {
   onRequestDelete: (sub: Subscription) => void;
   onQuickRenew: (sub: Subscription) => void;
   onRequestTerminate: (sub: Subscription) => void;
+  onMoveMemberPool?: (sub: Subscription) => void;
 }
 
 export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
@@ -31,6 +33,7 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
   onRequestDelete,
   onQuickRenew,
   onRequestTerminate,
+  onMoveMemberPool,
 }) => {
   return (
     <div className="bezel-shell overflow-hidden">
@@ -164,11 +167,23 @@ export const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
                         <RefreshCw className="h-4 w-4" />
                       </button>
 
+                      {/* Pindah Pool */}
+                      {onMoveMemberPool && (
+                        <button
+                          type="button"
+                          onClick={() => onMoveMemberPool(sub)}
+                          title="Pindahkan ke Pool Lain"
+                          className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </button>
+                      )}
+
                       {/* Kick / Terminate */}
                       <button
                         type="button"
                         onClick={() => onRequestTerminate(sub)}
-                        title="Kick & Kosongkan Slot"
+                        title="Kick & Simpan ke Arsip"
                         className="p-1.5 rounded-lg text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
                       >
                         <UserX className="h-4 w-4" />

@@ -9,7 +9,8 @@ import {
   ShieldAlert,
   CheckCircle2,
   UserX,
-  Send
+  Send,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Subscription } from '@/types/subscription';
 import { getDaysRemaining, formatCurrency, getCycleLabel, getMonthlyEquivalent } from '@/lib/utils';
@@ -20,6 +21,7 @@ interface ActionInboxBannerProps {
   onToggleChecklistItem: (subId: string, itemId: string) => void;
   onRequestTerminate: (sub: Subscription) => void;
   onQuickRenew: (sub: Subscription) => void;
+  onMoveMemberPool?: (sub: Subscription) => void;
 }
 
 export const ActionInboxBanner: React.FC<ActionInboxBannerProps> = ({
@@ -28,6 +30,7 @@ export const ActionInboxBanner: React.FC<ActionInboxBannerProps> = ({
   onToggleChecklistItem,
   onRequestTerminate,
   onQuickRenew,
+  onMoveMemberPool,
 }) => {
   if (urgentSubscriptions.length === 0) {
     return (
@@ -220,8 +223,21 @@ export const ActionInboxBanner: React.FC<ActionInboxBannerProps> = ({
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all active:scale-[0.98] cursor-pointer"
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
-                      Perpanjang Member
+                      <span>Perpanjang</span>
                     </button>
+
+                    {/* Pindah Pool */}
+                    {onMoveMemberPool && (
+                      <button
+                        type="button"
+                        onClick={() => onMoveMemberPool(sub)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 transition-all active:scale-[0.98] cursor-pointer"
+                        title="Pindahkan member ke pool lain"
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        <span>Pindah Pool</span>
+                      </button>
+                    )}
 
                     {/* Kick & Terminate Button */}
                     <button
@@ -233,7 +249,7 @@ export const ActionInboxBanner: React.FC<ActionInboxBannerProps> = ({
                           : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/25'
                       }`}
                     >
-                      <span>{allCompleted ? '✓ Kick Selesai (Kosongkan Slot)' : 'Kick & Kosongkan Slot'}</span>
+                      <span>{allCompleted ? '✓ Kick Selesai (Simpan di Arsip)' : 'Kick & Simpan ke Arsip'}</span>
                       <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center transition-transform group-hover:scale-110">
                         {allCompleted ? <CheckCircle className="h-3.5 w-3.5 text-white" /> : <UserX className="h-3.5 w-3.5 text-white" />}
                       </div>
