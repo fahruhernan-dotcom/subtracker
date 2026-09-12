@@ -237,67 +237,108 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         </div>
 
         {/* ROW 3: FINANCIAL & EXPIRY SCHEDULE BOX */}
-        <div className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 text-xs">
-          <div>
-            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">
+        <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
+          <div className="space-y-0.5">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">
               Tagihan Slot
             </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
+            <div className="flex items-baseline gap-1">
               <span className="font-mono font-black text-slate-900 dark:text-white text-sm">
                 {formatCurrency(sub.price, sub.currency)}
               </span>
-              <span className="text-[10px] text-slate-400 font-medium">
-                / {getCycleLabel(sub.billingCycle)}
+              <span className="text-[10px] text-slate-500 font-medium">
+                /{getCycleLabel(sub.billingCycle)}
               </span>
             </div>
             {sub.billingCycle !== 'monthly' && (
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">
                 ~{formatCurrency(getMonthlyEquivalent(sub.price, sub.billingCycle), sub.currency)}/bln
               </span>
             )}
           </div>
 
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider flex items-center justify-end gap-1">
-              <Calendar className="h-3 w-3" />
+          <div className="space-y-0.5 text-right flex flex-col justify-between items-end">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
+              <Calendar className="h-3 w-3 text-slate-400" />
               <span>Jatuh Tempo</span>
             </span>
-            <span className="font-mono font-extrabold text-slate-800 dark:text-slate-200 text-xs mt-0.5 block">
-              {formatDate(sub.endDate)}
-            </span>
+            <div>
+              <span className="font-mono font-extrabold text-slate-800 dark:text-slate-200 text-xs block">
+                {formatDate(sub.endDate)}
+              </span>
+              <span className={`text-[10px] font-bold ${
+                sub.status === 'ACTION_REQUIRED' ? 'text-rose-600 dark:text-rose-400' :
+                sub.status === 'EXPIRING_SOON' ? 'text-amber-600 dark:text-amber-400' :
+                'text-slate-400'
+              }`}>
+                {badge.label}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* ROW 4: KICK CHECKLIST MICRO-BAR */}
-        <div 
-          onClick={() => onOpenChecklist(sub)}
-          className="p-2.5 rounded-xl bg-slate-100/70 hover:bg-slate-100 dark:bg-slate-800/40 dark:hover:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/50 cursor-pointer transition-colors space-y-1.5"
-          title="Klik untuk buka SOP Checklist Kick Admin"
-        >
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+        {/* ROW 4: KICK CHECKLIST MICRO-BAR (Context-Aware) */}
+        {sub.status === 'ACTION_REQUIRED' ? (
+          <div 
+            onClick={() => onOpenChecklist(sub)}
+            className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 cursor-pointer transition-all hover:bg-rose-100/80 space-y-1.5"
+            title="Klik untuk buka SOP Checklist Kick Admin"
+          >
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-rose-500 animate-pulse shrink-0" />
+                <span>Wajib Kick Admin ({completedTasks}/{totalTasks})</span>
+              </span>
+              <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400">
+                {completedTasks === totalTasks ? 'Selesai 100% ✅' : `${Math.round(progressPercent)}%`}
+              </span>
+            </div>
+            <div className="w-full bg-rose-200/80 dark:bg-rose-900/50 h-1.5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-rose-600 dark:bg-rose-500 transition-all duration-300 rounded-full"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        ) : sub.status === 'EXPIRING_SOON' ? (
+          <div 
+            onClick={() => onOpenChecklist(sub)}
+            className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 cursor-pointer transition-all hover:bg-amber-100/80 space-y-1.5"
+            title="Klik untuk buka SOP Checklist Kick Admin"
+          >
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <span>SOP Kick Disiapkan ({completedTasks}/{totalTasks})</span>
+              </span>
+              <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400">
+                {completedTasks === totalTasks ? 'Selesai 100% ✅' : `${Math.round(progressPercent)}%`}
+              </span>
+            </div>
+            <div className="w-full bg-amber-200/80 dark:bg-amber-900/50 h-1.5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-amber-500 transition-all duration-300 rounded-full"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div 
+            onClick={() => onOpenChecklist(sub)}
+            className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/40 cursor-pointer transition-colors text-xs"
+            title="Klik untuk buka SOP Checklist Kick Admin"
+          >
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 text-[11px] font-semibold">
               <ShieldCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-              <span>SOP Kick Admin ({completedTasks}/{totalTasks})</span>
-            </span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-              {completedTasks === totalTasks ? 'Selesai 100% ✅' : `${Math.round(progressPercent)}%`}
-            </span>
+              <span>SOP Kick Admin</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+              <span>{completedTasks === totalTasks ? 'Siap 100% ✅' : `${completedTasks}/${totalTasks} Item`}</span>
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              <span className="text-blue-600 dark:text-blue-400 hover:underline">Lihat Checklist</span>
+            </div>
           </div>
-
-          {/* Progress bar track */}
-          <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-300 rounded-full ${
-                completedTasks === totalTasks 
-                  ? 'bg-emerald-500' 
-                  : completedTasks > 0 
-                  ? 'bg-blue-500' 
-                  : 'bg-slate-300 dark:bg-slate-600'
-              }`}
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </div>
+        )}
 
         {/* ROW 5: FOOTER ACTION BAR */}
         <div className="flex items-center justify-between pt-1 gap-2">
@@ -306,20 +347,20 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             <button
               type="button"
               onClick={() => onOpenWhatsAppModal(sub)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs ring-1 ring-emerald-500/20 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs border border-emerald-200 dark:border-emerald-800/60 transition-all cursor-pointer"
               title="Kirim pesan WhatsApp tagihan / konfirmasi"
             >
-              <MessageSquare className="h-3.5 w-3.5" />
+              <MessageSquare className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>WhatsApp</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
                 isHistoryExpanded
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
               }`}
               title="Lihat riwayat audit trail member"
             >
@@ -327,7 +368,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               <span>Riwayat</span>
               {memberLogs.length > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  isHistoryExpanded ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  isHistoryExpanded ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
                   {memberLogs.length}
                 </span>
@@ -352,10 +393,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               <button
                 type="button"
                 onClick={() => onQuickRenew(sub)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${
                   sub.status === 'ACTION_REQUIRED' || sub.status === 'EXPIRING_SOON'
                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20'
-                    : 'bg-slate-100 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                    : 'bg-slate-100 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
                 title="Perpanjang masa aktif slot"
               >
