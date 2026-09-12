@@ -6,7 +6,7 @@
 
 | Dokumen | Nilai |
 | :--- | :--- |
-| **Versi Produk** | **v2.0.0-Production (Smart Inventory, Soft-Kick & Multi-Sort Engine)** |
+| **Versi Produk** | **v2.1.0-Production (Smart Inventory, Triple Guards, Anti-Collision UI & Multi-Sort Engine)** |
 | **Status** | Approved & Production Baseline |
 | **Target Platform** | Web App (Desktop Responsive & Mobile Viewport 375px PWA Ready) |
 | **Tech Stack Utama** | Next.js 16 (App Router + Turbopack), React 19, TypeScript 5, Tailwind CSS v4, Dexie.js (IndexedDB Local-First), Supabase PostgreSQL |
@@ -23,7 +23,7 @@ Dokumentasi lengkap SubTracker dibagi menjadi 6 modul dokumen terspesialisasi:
 3. **[Spesifikasi Pencarian Cerdas, Sorting & Desain Interaksi](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_SEARCH_SORT_AND_UX.md)**: Mesin pencarian multi-token (No WA, email, notes, deep pool search), sorting 2-lapis (akun expired otomatis di bawah), header tabel interaktif, dan mobile responsive design (375px).
 4. **[Spesifikasi Katalog Harga Dinamis & Analitik Finansial](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_PRICING_AND_FINANCIALS.md)**: Database-driven packages (Primary vs Secondary email), pendaftaran 1-klik dari paket, kalkulator unit economics, MRR, payback period BEP, dan generator broadcast WA.
 5. **[Spesifikasi Keamanan Data, Kredensial Vault & Sinkronisasi Cloud](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_DATA_SECURITY_AND_SYNC.md)**: Arsitektur Local-First (Dexie.js), Credential Vault terenkripsi, Supabase Real-time Sync, pencegahan error ekstensi browser (`suppress-extension-errors.js`), serta backup export/import & iCalendar sync.
-6. **[PRD & Manual Integrasi AI Agent (Hermes & Bot)](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/PRD_AI_AGENT_SYSTEM_DIRECTIVES.md)**: Pedoman mesin, aturan akuntansi kas terkunci (never-reset profit), data dictionary Supabase, kueri SQL baku, dan SOP triase otomatis untuk AI Agent.
+6. **[PRD & Manual Integrasi AI Agent (Hermes & Bot)](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/PRD_AI_AGENT_SYSTEM_DIRECTIVES.md)**: Pedoman mesin, aturan akuntansi kas terkunci (never-reset profit), triple guards (in-flight lock, duplicate check, capacity cap), data dictionary Supabase, kueri SQL baku, dan SOP triase otomatis untuk AI Agent.
 
 ---
 
@@ -48,6 +48,8 @@ SubTracker berfungsi sebagai **Sistem Operasi Reseller Terpadu** yang menghadirk
 - **Smart 2-Tier Sorting**: Akun expired otomatis ditaruh di bawah sendiri, akun aktif selalu di atas.
 - **Robust Multi-Token Search**: Pencarian cerdas mencakup nomor WhatsApp, email, catatan, nomor slot, hingga deep member search di dalam pool.
 - **Soft-Kick Preservation & Pindah Pool**: Data member yang di-kick tetap tersimpan utuh di arsip drawer pool dan dapat dipindahkan ke pool lain dengan 1 klik.
+- **Triple-Guard Data Safety**: Proteksi *in-flight submission lock*, cegah duplikasi email aktif di pool yang sama, dan batas keras kapasitas 5 slot per pool.
+- **Anti-Collision 2-Row Card UI**: Tata letak kartu langganan terstruktur dengan menu `•••` di pojok kanan atas dan action footer $\le 230$px tanpa tombol tumpeng tindih atau meluber.
 - **Dual-Tier Inventory Intelligence**: Klasifikasi pool otomatis antara akun garansi perpanjangan ($\ge 180$ hari) dan akun lepas ($< 180$ hari), serta auto-nonaktif akun expired.
 - **Credential Vault**: Penyimpanan kredensial akun master yang aman dan terisolasi.
 

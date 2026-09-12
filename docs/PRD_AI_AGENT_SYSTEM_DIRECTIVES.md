@@ -10,7 +10,7 @@
 | **Judul** | SubTracker AI Agent Ground Rules & Operational Directives |
 | **Target Audience** | Autonomous AI Agents (Hermes Telegram Bot, Cron Workers, Data Warehouse Analyzers, LLM Pair Programmers) |
 | **Status** | **ACTIVE & PRODUCTION BASELINE** |
-| **Versi** | **v2.0.0-LockedCash** |
+| **Versi** | **v2.1.0-LockedCash-GuardProtected** |
 | **Sistem Terkait** | SubTracker Command Center (Google One Pro Multi-Seat Reseller) |
 | **Database Engine** | Supabase PostgreSQL (`postgres`) + Dexie.js IndexedDB (`subtracker_db`) |
 | **Terakhir Diperbarui** | 12 September 2026 |
@@ -24,9 +24,10 @@ Dokumen ini adalah **Instruksi Mesin (Machine Directives)** resmi yang wajib dib
 Tujuan utama dokumen ini adalah memastikan AI Agent:
 1. **Tidak melakukan halusinasi finansial:** Memahami perbedaan fundamental antara *Uang Kas Masuk Riil (Realized Cash)*, *Omset Kontrak Berjalan (Active Contracted Revenue)*, dan *MRR (Monthly Run Rate)*.
 2. **Tidak mereset laba dan omset:** Memahami bahwa uang yang sudah dibayar oleh member yang telah habis masa aktifnya (`TERMINATED` / Mantan Member) **TIDAK PERNAH HILANG** dari buku besar kas.
-3. **Mengeksekusi penambahan orderan baru secara valid:** Mengalokasikan slot 1..5 yang kosong, memilih pool yang tepat (Garansi vs Lepas), dan memastikan sinkronisasi data lokal/cloud.
-4. **Mengeksekusi pemindahan member antar pool dengan integritas data:** Memindahkan sisa masa aktif tanpa menggandakan kas, atau mencatat transaksi baru jika transfer dibarengi perpanjangan.
-5. **Menjaga tampilan UI Web SubTracker tetap sinkron & rapi:** Memastikan relasi ID, nomor slot, dan status member tepat sehingga kartu pool, donat chart, dan tabel ter-render sempurna tanpa kartu hantu (*ghost elements*).
+3. **Mengeksekusi penambahan orderan baru secara valid:** Mengalokasikan slot 1..5 yang kosong, memilih pool yang tepat (Garansi vs Lepas), mengunci proses submit (*in-flight submission lock*), serta memverifikasi limit kapasitas pool (maksimal 5 slot).
+4. **Mencegah duplikasi data (Duplicate Guards):** Memastikan tidak ada member ganda dengan email aktif yang sama di dalam satu pool.
+5. **Mengeksekusi pemindahan member antar pool dengan integritas data:** Memindahkan sisa masa aktif tanpa menggandakan kas, atau mencatat transaksi baru jika transfer dibarengi perpanjangan.
+6. **Menjaga tampilan UI Web SubTracker tetap sinkron & rapi:** Mematuhi kontrak antarmuka 2-baris, memastikan relasi ID, nomor slot, dan status member tepat sehingga kartu pool, donat chart, dan tabel ter-render sempurna tanpa tabrakan elemen (*layout collision*).
 
 ---
 
@@ -57,12 +58,12 @@ Bisnis ini beroperasi dengan model arbitrase komputasi awan dan langganan digita
 
 | Nama Metrik | Simbol / Variabel | Definisi & Rumus | Target Data Terkini (Sep 2026) |
 | :--- | :--- | :--- | :--- |
-| **Total Kas Riil Masuk (Gross Realized Revenue)** | `totalContractedRevenue` | $\sum_{\text{all subscriptions with } price > 0} price$<br>*(Menjumlahkan SELURUH transaksi langganan yang pernah dibayar, TERMASUK member status `TERMINATED`)* | **Rp 720.000** |
-| **Omset Kontrak Aktif (Active Contracted Revenue)** | `activeContractedRevenue` | $\sum_{s \in \{\text{ACTIVE, EXPIRING, OVERDUE, GRACE}\}} s.price$<br>*(Nilai kontrak dari member yang saat ini sedang memegang slot)* | **Rp 300.000** (dari 9 slot aktif) |
+| **Total Kas Riil Masuk (Gross Realized Revenue)** | `totalContractedRevenue` | $\sum_{\text{all subscriptions with } price > 0} price$<br>*(Menjumlahkan SELURUH transaksi langganan yang pernah dibayar, TERMASUK member status `TERMINATED`)* | **Rp 800.000** |
+| **Omset Kontrak Aktif (Active Contracted Revenue)** | `activeContractedRevenue` | $\sum_{s \in \{\text{ACTIVE, EXPIRING, OVERDUE, GRACE}\}} s.price$<br>*(Nilai kontrak dari member yang saat ini sedang memegang slot)* | **Rp 380.000** (dari 10 slot aktif) |
 | **Kas Riil Mantan Member (Historical Cash)** | `historicalContractedRevenue` | $\sum_{s \in \{\text{TERMINATED}\}} s.price$<br>*(Uang kas yang terkunci dari member yang sudah selesai berlangganan)* | **Rp 420.000** (dari 6 mantan member) |
-| **MRR Berjalan (Monthly Run Rate)** | `monthlyRevenueEstimate` | $\sum_{s \in \text{ACTIVE}} \frac{s.price}{\max(1, \text{durasi bulan})}$<br>*(Estimasi pendapatan per bulan dari member aktif)* | **~Rp 100.000 / bulan** |
+| **MRR Berjalan (Monthly Run Rate)** | `monthlyRevenueEstimate` | $\sum_{s \in \text{ACTIVE}} \frac{s.price}{\max(1, \text{durasi bulan})}$<br>*(Estimasi pendapatan per bulan dari member aktif)* | **~Rp 126.667 / bulan** |
 | **Total Modal Induk (Master COGS)** | `totalMasterCost` | $\sum_{p \in \text{account\_pools}} p.cost$<br>*(Total biaya pembelian seluruh akun master)* | **Rp 170.000** (5 master pool) |
-| **Laba Bersih Terkunci (Net Realized Profit)** | `totalNetProfit` | `totalContractedRevenue - totalMasterCost`<br>*(Total Kas Riil Masuk dikurangi Total Modal Master)* | **+Rp 550.000** (Surplus ~76%) |
+| **Laba Bersih Terkunci (Net Realized Profit)** | `totalNetProfit` | `totalContractedRevenue - totalMasterCost`<br>*(Total Kas Riil Masuk dikurangi Total Modal Master)* | **+Rp 630.000** (Surplus ~79%) |
 
 ### 3.2 Benchmark Produksi (Ground Truth per 12 September 2026)
 
@@ -70,21 +71,21 @@ Jika AI Agent menjalankan kalkulasi atau analitik, hasil perhitungan **WAJIB** c
 * **Total Akun Master (5 Pool):**
   1. `amrullahfda@gmail.com` (Garansi, Modal: Rp 40.000, 5 Slot Aktif)
   2. `oren_hoki01@gmail.com` (Garansi, Modal: Rp 40.000, 3 Slot Aktif)
-  3. `husnidrsae@gmail.com` (Akun Lepas, Modal: Rp 20.000, 1 Slot Aktif)
+  3. `husnidrsae@gmail.com` (Akun Lepas, Modal: Rp 20.000, 5/5 Slot Aktif Penuh: Hero Farm, Donies Daily, Fahru Hernan 2, TernakOs, Ardana - Kas Masuk: Rp 80.000)
   4. `anakbawangstore@gmail.com` (Expired 11 Sep 2026, Modal: Rp 40.000, 5 Mantan Member, Omset Kas Rp 350.000)
   5. `fahruhernansakti3@gmail.com` (Expired 10 Sep 2026, Modal: Rp 30.000, 1 Mantan Member, Omset Kas Rp 70.000)
   - **Total Modal Master (COGS) = Rp 170.000**
-* **Total Member Aktif:** **9 Member** (Kontrak Aktif: **Rp 300.000**, MRR: **~Rp 100.000/bln**)
+* **Total Member Aktif:** **10 Member** (Kontrak Aktif: **Rp 380.000**, MRR: **~Rp 126.667/bln**)
 * **Total Mantan Member Berbayar (Soft-Kicked / Terminated):** **6 Member** @ Rp 70.000 = **Rp 420.000**
-  - Daftar: `Rey`, `Ardana`, `Jonathan Raymond`, `Farhan Firjatullah`, `Faqih Syaifulloh`, `Tio`.
-* **Total Kas Masuk Terkunci:** $\text{Rp 300.000} + \text{Rp 420.000} = \mathbf{Rp\ 720.000}$
-* **Laba Bersih Riil:** $\text{Rp 720.000} - \text{Rp 170.000} = \mathbf{+Rp\ 550.000}$
+  - Daftar: `Rey`, `Ardana` (lama di Anak Bawang), `Jonathan Raymond`, `Farhan Firjatullah`, `Faqih Syaifulloh`, `Tio`.
+* **Total Kas Masuk Terkunci:** $\text{Rp 380.000} + \text{Rp 420.000} = \mathbf{Rp\ 800.000}$
+* **Laba Bersih Riil:** $\text{Rp 800.000} - \text{Rp 170.000} = \mathbf{+Rp\ 630.000}$
 
 > [!WARNING]
 > **Deteksi Bug Halusinasi:**
 > Jika AI Agent menghasilkan laporan:
-> - *Total Omset: Rp 300.000*
-> - *Laba Bersih: +Rp 130.000*
+> - *Total Omset: Rp 380.000*
+> - *Laba Bersih: +Rp 210.000*
 > 
 > **MAKA LAPORAN ITU SALAH (BUG) ❌.** Angka tersebut membuang kas Rp 420.000 dari 6 mantan member namun tetap membebankan modal Rp 70.000 dari pool expired. Koreksi segera kalkulasi dengan menyertakan seluruh transaksi berbayar (`price > 0`).
 
@@ -150,7 +151,58 @@ flowchart TD
    - Jika order **6 bulan atau 1 tahun:** Wajib alokasikan ke Pool yang sisa harinya $\ge 180$ hari (Pool Tier **Garansi Perpanjang**). DILARANG memasukkan paket tahunan ke pool yang sisa harinya $< 180$ hari!
    - Jika order **1 bulan atau 3 bulan:** Boleh dialokasikan ke pool bertier **Akun Lepas** (sisa hari $< 180$ hari).
 
-### 5.3 Tahap 3: Alokasi Nomor Slot (`slot_number`)
+### 5.3 Tahap 3: Tiga Lapisan Proteksi Wajib (Triple-Guard System)
+Sebelum melakukan mutasi data, AI Agent maupun antarmuka form **WAJIB** mengeksekusi 3 lapisan proteksi berikut guna mencegah insiden kerusakan data (seperti kasus duplikasi data 13x dan over-kapasitas 17/5 slot):
+
+```mermaid
+flowchart TD
+    G1{"Guard 1: In-Flight Lock Active?"}
+    G1 -->|"Sedang Proses"| Reject1["TOLAK: Mencegah Double Submit"]
+    G1 -->|"Idle"| Lock["Aktifkan Lock (isSubmitting = true)"]
+    Lock --> G2{"Guard 2: Email Sudah Aktif di Pool Ini?"}
+    G2 -->|"Sudah Ada"| Reject2["TOLAK: Duplikasi Member di Pool yang Sama"]
+    G2 -->|"Belum Ada"| G3{"Guard 3: Slot Aktif >= Kapasitas Max (5)?"}
+    G3 -->|"Penuh"| Reject3["TOLAK: Pool Sudah Penuh (Hard Limit 5)"]
+    G3 -->|"Tersedia"| Proceed["Lanjutkan Alokasi Slot & Insert Database"]
+```
+
+#### 🛡️ Guard 1: In-Flight Submission Lock (`isSubmitting` & Idempotency)
+* **Masalah:** Multi-klik cepat pada tombol "Simpan" atau pengulangan request dari background agent menyebabkan 13 record langganan yang sama ter-insert sekaligus dalam hitungan detik.
+* **Aturan Implementasi:**
+  - Di level UI: State `isSubmitting` wajib bernilai `true` saat tombol ditekan, tombol wajib `disabled`, dan teks berubah menjadi spinner/`"Menyimpan..."`.
+  - Di level AI Agent / API Worker: Gunakan locking token atau idempotency key unik (misal: hash dari `account_email + pool_id + today`) agar request berulang dalam jendela 30 detik diabaikan secara aman.
+
+#### 🛡️ Guard 2: Duplicate Active Member Guard (Anti-Duplikasi Email Aktif)
+* **Masalah:** Satu pelanggan didaftarkan berulang kali di pool yang sama sehingga memboroskan kuota slot dan merusak konsistensi data keluarga Google One.
+* **Aturan Implementasi:**
+  - AI Agent wajib memeriksa apakah email pelanggan sudah memiliki langganan aktif di pool tujuan:
+  ```typescript
+  const isDuplicateActive = existingSubscriptions.some(
+    s => s.poolId === targetPool.id &&
+         s.accountEmail.trim().toLowerCase() === newMember.accountEmail.trim().toLowerCase() &&
+         s.status !== 'TERMINATED'
+  );
+  if (isDuplicateActive) {
+    throw new Error(`Member dengan email ${newMember.accountEmail} sudah aktif terdaftar di pool ini!`);
+  }
+  ```
+
+#### 🛡️ Guard 3: Pool Capacity Limit Hard Stop (Maksimal 5 Slot / `total_slots`)
+* **Masalah:** Pool master Google One hanya mengizinkan maksimal 5 akun anggota keluarga (1 Master + 5 Member). Sistem tidak boleh mengizinkan pool terisi lebih dari 5 slot aktif (seperti insiden 17 slot terisi).
+* **Aturan Implementasi:**
+  - Hitung jumlah slot aktif riil saat ini di pool tujuan:
+  ```typescript
+  const currentActiveMembers = existingSubscriptions.filter(
+    s => s.poolId === targetPool.id && s.status !== 'TERMINATED'
+  );
+  const maxCapacity = targetPool.totalSlots || 5;
+
+  if (currentActiveMembers.length >= maxCapacity) {
+    throw new Error(`Kapasitas pool ${targetPool.name} telah PENUH (${currentActiveMembers.length}/${maxCapacity}). Pilih pool lain!`);
+  }
+  ```
+
+### 5.4 Tahap 4: Alokasi Nomor Slot (`slot_number`)
 - Setiap pool memiliki slot bernomor **1 sampai 5**.
 - Ambil semua member aktif yang terdaftar di pool tersebut:
   ```typescript
@@ -163,7 +215,7 @@ flowchart TD
   ```
 - **Krusial untuk UI Web:** Jika `slot_number` diisi `null`, kartu pool di UI web akan menampilkan slot 1..5 kosong dan member terlempar ke daftar floating! Jadi `slot_number` **WAJIB DIALOKASIKAN**.
 
-### 5.4 Tahap 4: Atomic Mutation
+### 5.5 Tahap 5: Atomic Mutation & Release Lock
 Saat order baru dibuat:
 1. Buat record di `subscriptions`:
    - `price`: nominal pembayaran paket (contoh: `70000`).
@@ -174,10 +226,11 @@ Saat order baru dibuat:
    - `poolName`: Nama email master terpilih.
    - `slotNumber`: Nomor slot yang didapat.
 2. Update record di `account_pools`:
-   - `used_slots = used_slots + 1`.
+   - `used_slots = currentActiveMembers.length + 1`.
 3. Buat record audit di `activity_logs`:
    - `action`: `'MEMBER_CREATED'`.
    - `description`: `'Mendaftarkan member {member_name} ke pool {pool_name} (Slot {slot_number})'`.
+4. Lepaskan lock (`isSubmitting = false`).
 
 ---
 
@@ -246,6 +299,24 @@ Aplikasi SubTracker dirancang dengan arsitektur **Local-First Reactive**:
 | **Drawer Mantan Member** | `s.status === 'TERMINATED'` dan `(s.poolId === pool.id || s.poolName === pool.name)` | Jika mantan member dihapus permanen (`DELETE`), riwayat kontak pelanggan hilang dan omset kas pool ter-reset. **Gunakan Soft-Kick (`status = 'TERMINATED'`), JANGAN `DELETE`!** |
 | **Tabel Member (`SubscriptionTable.tsx`)** | `s.status`, `s.endDate`, `s.price` | Sorting 2-lapis otomatis mendemotir member `TERMINATED` ke paling bawah dengan garis pembatas pemisah. |
 | **Laporan Finansial (`FinancialAnalyticsView.tsx`)** | Menjumlahkan seluruh member yang pernah terdaftar di pool (`allMembers`) untuk menghitung omset riil pool. | Jika memfilter hanya `status !== 'TERMINATED'`, pool yang sudah expired akan dilaporkan rugi 100%. |
+
+### 7.2 Kontrak Desain Kartu Langganan (2-Row Subscription Card & Anti-Collision UI)
+Pada tampilan grid kartu member (`SubscriptionCard.tsx`), lebar kartu berkisar antara **300px hingga 340px**. Untuk mencegah terjadinya elemen meluber atau tombol keluar dari batas border kartu:
+1. **Pemisahan Kebab Menu `•••` ke Baris Atas:**
+   - Tombol kebab menu diposisikan di sudut kanan atas header kartu (`absolute top-3 right-3`), sejajar dengan nama member dan nomor slot.
+   - DILARANG menaruh 4 tombol bersamaan di baris footer bawah karena total lebarnya melebihi lebar kontainer kartu.
+2. **Footer Action Bar Ramping (Lebar Maksimal ~230px):**
+   - Baris footer hanya menampung 3 tombol cepat: `[Perpanjang]`, `[Pindah Pool]`, dan `[Kick / Tagih]`.
+   - Menggunakan flex layout dengan `gap-1.5` dan padding proporsional (`px-2.5 py-1.5`) sehingga aman dari overflow di resolusi 375px hingga desktop.
+3. **Visibilitas Kontekstual SOP Kick Alert Bar:**
+   - Indikator peringatan dan progress bar SOP Kick HANYA dimunculkan mencolok jika member memiliki sisa hari $\le 7$ hari atau statusnya `OVERDUE` / `GRACE_PERIOD`.
+   - Jika sisa hari masih aman ($> 7$ hari), bar peringatan disembunyikan agar kartu tetap bersih dan bernapas lega.
+4. **Pencegahan Badges Wrapping (`whitespace-nowrap`):**
+   - Seluruh tag metadata status dan nama paket pada kelas `.eyebrow-pill` wajib menyertakan utility `whitespace-nowrap` agar teks tidak patah baris vertikal secara aneh.
+
+### 7.3 Graceful Fallback Supabase Realtime WebSocket
+- Supabase Realtime menggunakan koneksi Phoenix Channels WebSocket (`wss://...`).
+- Jika terjadi gangguan jaringan atau status channel menjadi `CHANNEL_ERROR` / `TIMED_OUT`, sistem SubTracker secara otomatis melakukan `supabase.removeChannel(channel)` dan beralih ke pembacaan lokal Dexie.js tanpa memicu loop reconnect tanpa henti di console log browser.
 
 ---
 
@@ -440,9 +511,16 @@ File dan foto kakak di Google Drive tetap 100% AMAN dan tidak terhapus. Jika kak
 ## 📋 12. Daftar Periksa (Checklist) Kesiapan AI Agent
 
 Sebelum merespons kueri seputar laporan keuangan atau mengambil aksi otomatis, AI Agent wajib memverifikasi:
-- [ ] Apakah perhitungan omset menyertakan member yang sudah nonaktif / di-kick (`price > 0`)?
-- [ ] Apakah total kas masuk menghasilkan minimal **Rp 720.000** (bukan Rp 300.000)?
-- [ ] Apakah laba bersih menghasilkan minimal **+Rp 550.000** (bukan +Rp 130.000)?
+- [ ] Apakah perhitungan omset menyertakan seluruh member yang sudah nonaktif / di-kick (`price > 0`)?
+- [ ] Apakah total kas masuk menghasilkan minimal **Rp 800.000** (bukan Rp 380.000 atau Rp 720.000)?
+- [ ] Apakah laba bersih menghasilkan minimal **+Rp 630.000** (bukan +Rp 210.000 atau +Rp 550.000)?
+- [ ] Apakah omset kontrak aktif menghasilkan **Rp 380.000** dari 10 member aktif yang memegang slot?
+- [ ] Apakah kas riil mantan member tercatat terkunci sebesar **Rp 420.000** dari 6 mantan member?
 - [ ] Apakah pool expired seperti `anakbawangstore` dihitung untung berdasarkan histori omsetnya (+Rp 310.000), bukan rugi (-Rp 40.000)?
+- [ ] **Guard 1 (In-Flight Lock):** Apakah form submit / agent worker mengunci state (`isSubmitting`) untuk mencegah double submission?
+- [ ] **Guard 2 (Duplicate Active Email):** Apakah ada validasi bahwa email member belum aktif di pool tujuan sebelum insert?
+- [ ] **Guard 3 (Pool Capacity Hard Limit):** Apakah sistem menolak jika slot aktif di pool tujuan sudah mencapai batas 5 slot?
 - [ ] Saat menambah order baru: Apakah `slot_number` (1..5) dialokasikan dan `used_slots` di-update?
 - [ ] Saat memindahkan member: Apakah kas lama tetap terkunci di pool asal tanpa double counting?
+- [ ] **UI Anti-Collision:** Apakah kartu member mematuhi kontrak 2-baris dengan menu kebab di atas dan lebar footer action $\le 230$px?
+
