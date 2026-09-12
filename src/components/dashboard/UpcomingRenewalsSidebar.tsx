@@ -60,20 +60,20 @@ export const UpcomingRenewalsSidebar: React.FC<UpcomingRenewalsSidebarProps> = (
                 >
                   <div 
                     onClick={() => onSelectSubscription(sub)} 
-                    className="flex items-center gap-3 min-w-0 flex-1"
+                    className="flex items-center gap-2.5 min-w-0 flex-1"
                   >
-                    <div className={`h-9 w-9 rounded-xl ${sub.avatarColor || 'bg-slate-700'} flex items-center justify-center text-white font-black text-xs shrink-0 ring-1 ring-white/10`}>
-                      {sub.provider.charAt(0)}
+                    <div className={`h-8 w-8 rounded-lg ${sub.avatarColor || 'bg-blue-600'} flex items-center justify-center text-white font-bold text-xs shrink-0 ring-1 ring-white/10`}>
+                      {sub.memberName ? sub.memberName.charAt(0).toUpperCase() : sub.provider.charAt(0)}
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate" title={sub.memberName || sub.name}>
                         {sub.memberName || sub.name}
                       </h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`eyebrow-pill py-0.2 px-1.5 border ${badge.colorClass}`}>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-extrabold border whitespace-nowrap shrink-0 ${badge.colorClass}`}>
                           {badge.label}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-bold">
+                        <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">
                           {formatCurrency(sub.price, sub.currency)}
                         </span>
                       </div>
