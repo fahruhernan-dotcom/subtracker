@@ -25,7 +25,8 @@ import {
   Search,
   Phone,
   Mail,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { 
   Subscription, 
@@ -44,7 +45,7 @@ import { db } from '@/lib/db/dexie-db';
 interface AddEditSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (subscriptionData: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>, editId?: string) => void;
+  onSave: (subscriptionData: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>, editId?: string) => Promise<void> | void;
   initialSubscription?: Subscription | null;
   pools?: AccountPool[];
   onOpenAddPoolModal?: () => void;
@@ -233,6 +234,9 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
   const [existingSearchQuery, setExistingSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedFromExisting, setSelectedFromExisting] = useState<string | null>(null);
+
+  // Form Submission Lock Guard
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fallback: fetch from Dexie DB if existingSubscriptions prop is empty
   useEffect(() => {
@@ -537,39 +541,46 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
     setChecklist(prev => prev.filter(item => item.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // 🔒 Guard: prevent duplicate submissions while in-flight
     if (!name || !endDate || !accountEmail || !memberName) return;
 
-    onSave(
-      {
-        name,
-        provider: provider || name,
-        category,
-        accountEmail,
-        memberName,
-        clientPhone,
-        poolId,
-        poolName,
-        slotNumber,
-        startDate,
-        endDate,
-        price,
-        currency,
-        billingCycle,
-        autoRenews,
-        status: 'ACTIVE',
-        checklist,
-        reminderOffsets,
-        notes,
-        tags: [provider, poolName].filter(Boolean) as string[],
-        avatarColor,
-      },
-      initialSubscription?.id
-    );
+    setIsSubmitting(true);
+    try {
+      await onSave(
+        {
+          name,
+          provider: provider || name,
+          category,
+          accountEmail,
+          memberName,
+          clientPhone,
+          poolId,
+          poolName,
+          slotNumber,
+          startDate,
+          endDate,
+          price,
+          currency,
+          billingCycle,
+          autoRenews,
+          status: 'ACTIVE',
+          checklist,
+          reminderOffsets,
+          notes,
+          tags: [provider, poolName].filter(Boolean) as string[],
+          avatarColor,
+        },
+        initialSubscription?.id
+      );
 
-    if (!initialSubscription) {
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      if (!initialSubscription) {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      }
+    } catch (err) {
+      console.error('Failed to save subscription:', err);
+      setIsSubmitting(false);
     }
   };
 
@@ -634,8 +645,9 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
               )}
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={onClose}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1284,20 +1296,30 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
             <div className="flex items-center gap-3">
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                className="px-4 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 Batal
               </button>
 
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={handleSubmit}
-                className="group flex items-center gap-2 pl-5 pr-1.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all active:scale-[0.98] cursor-pointer"
+                className={`group flex items-center gap-2 pl-5 pr-1.5 py-1.5 rounded-full text-white text-xs font-bold shadow-md transition-all ${
+                  isSubmitting 
+                    ? 'bg-blue-400 dark:bg-blue-500/60 shadow-none opacity-80 cursor-not-allowed pointer-events-none' 
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20 active:scale-[0.98] cursor-pointer'
+                }`}
               >
-                <span>{initialSubscription ? 'Perbarui Data Member' : 'Simpan & Monitor Slot'}</span>
+                <span>{isSubmitting ? 'Menyimpan Data...' : (initialSubscription ? 'Perbarui Data Member' : 'Simpan & Monitor Slot')}</span>
                 <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center transition-transform group-hover:scale-110">
-                  <Check className="h-3.5 w-3.5 text-white" />
+                  {isSubmitting ? (
+                    <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5 text-white" />
+                  )}
                 </div>
               </button>
             </div>

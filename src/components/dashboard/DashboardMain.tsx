@@ -339,6 +339,33 @@ export default function DashboardMain() {
         `Memperbarui data member ${updated.memberName} (${updated.name})`
       );
     } else {
+      // 🔒 Guard 1: Prevent duplicate active member in same pool
+      if (data.poolId && data.accountEmail) {
+        const isDuplicate = subscriptions.some(
+          s => s.poolId === data.poolId && 
+               s.accountEmail.trim().toLowerCase() === data.accountEmail.trim().toLowerCase() &&
+               s.status !== 'TERMINATED'
+        );
+        if (isDuplicate) {
+          alert(`Member dengan email "${data.accountEmail}" sudah terdaftar aktif di pool ini. Tidak dapat menambahkan member duplikat.`);
+          return;
+        }
+      }
+
+      // 🔒 Guard 2: Pool capacity limit check (max 5 slots)
+      if (data.poolId) {
+        const targetPool = pools.find(p => p.id === data.poolId);
+        const activeMembersInPool = subscriptions.filter(
+          s => (s.poolId === data.poolId || s.poolName?.toLowerCase() === targetPool?.name.toLowerCase()) && 
+               s.status !== 'TERMINATED'
+        );
+        const maxSlots = targetPool?.totalCapacity || 5;
+        if (activeMembersInPool.length >= maxSlots) {
+          alert(`Pool "${targetPool?.name || data.poolName}" sudah penuh (${activeMembersInPool.length}/${maxSlots} slot terisi). Silakan pilih pool lain.`);
+          return;
+        }
+      }
+
       const newSub: Subscription = {
         ...data,
         id: generateSubId(),

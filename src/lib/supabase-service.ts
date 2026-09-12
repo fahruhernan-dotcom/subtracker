@@ -524,7 +524,12 @@ export function subscribeToCloudChanges(onUpdate: () => void): () => void {
           onUpdate();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // If Realtime is not enabled on the Supabase project/schema, tear down cleanly to avoid noisy WebSocket reconnect loops
+          supabase.removeChannel(channel);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
