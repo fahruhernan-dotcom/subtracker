@@ -47,6 +47,8 @@ export function computeDashboardMetrics(
   let monthlyRevenueEstimate = 0;
   let yearlyRevenueEstimate = 0;
   let totalContractedRevenue = 0;
+  let activeContractedRevenue = 0;
+  let historicalContractedRevenue = 0;
   
   const currencyBreakdown: Record<CurrencyCode, number> = {
     IDR: 0,
@@ -59,11 +61,18 @@ export function computeDashboardMetrics(
   subscriptions.forEach(sub => {
     const status = resolveSubscriptionStatus(sub, currentDate);
     const daysLeft = getDaysRemaining(sub.endDate, currentDate);
+    const price = Number(sub.price) || 0;
+
+    // Catat kas masuk riil: uang yang sudah dibayarkan member tidak pernah hangus dari pembukuan
+    totalContractedRevenue += price;
 
     if (status === 'TERMINATED') {
       terminatedCount++;
-      return; // Do not count into active revenue
+      historicalContractedRevenue += price;
+      return; // Tidak dihitung ke dalam kuota slot aktif atau estimasi MRR berjalan
     }
+
+    activeContractedRevenue += price;
 
     if (status === 'ACTION_REQUIRED') {
       needActionCount++;
@@ -78,17 +87,14 @@ export function computeDashboardMetrics(
       upcomingRenewalsCount++;
     }
 
-    // Total contracted revenue (Sum of actual prices paid by active members)
-    totalContractedRevenue += (Number(sub.price) || 0);
-
-    // Monthly revenue normalizer
-    let monthlyRate = sub.price;
+    // Monthly revenue normalizer (khusus member aktif)
+    let monthlyRate = price;
     if (sub.billingCycle === 'yearly') {
-      monthlyRate = sub.price / 12;
+      monthlyRate = price / 12;
     } else if (sub.billingCycle === 'quarterly') {
-      monthlyRate = sub.price / 3;
+      monthlyRate = price / 3;
     } else if (sub.billingCycle === 'semi_annual') {
-      monthlyRate = sub.price / 6;
+      monthlyRate = price / 6;
     }
 
     monthlyRevenueEstimate += monthlyRate;
@@ -104,7 +110,7 @@ export function computeDashboardMetrics(
   const totalMasterCostYearly = totalMasterCost;
   const totalMasterCostMonthly = Math.round(totalMasterCost / 12);
 
-  // Total Actual Realized Net Profit (Total Revenue Paid - Total Master Cost Spent)
+  // Total Actual Realized Net Profit (Total Kas Masuk Seluruh Member - Total Modal Master)
   const totalNetProfit = Math.round(totalContractedRevenue - totalMasterCost);
   const totalProfitMarginPercent = totalContractedRevenue > 0
     ? Math.round((totalNetProfit / totalContractedRevenue) * 100)
@@ -127,6 +133,8 @@ export function computeDashboardMetrics(
     needActionCount,
     terminatedCount,
     totalContractedRevenue: Math.round(totalContractedRevenue),
+    activeContractedRevenue: Math.round(activeContractedRevenue),
+    historicalContractedRevenue: Math.round(historicalContractedRevenue),
     totalMasterCost: Math.round(totalMasterCost),
     totalNetProfit,
     totalProfitMarginPercent,

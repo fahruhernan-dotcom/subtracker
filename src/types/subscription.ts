@@ -142,7 +142,9 @@ export interface DashboardMetrics {
   upcomingRenewalsCount: number; // next 30 days
   needActionCount: number;       // member yang perlu di-kick / ditagih
   terminatedCount: number;
-  totalContractedRevenue: number; // Total Omset Kas Aktual Masuk (Sum of sub.price all active members)
+  totalContractedRevenue: number; // Total Omset Kas Aktual Masuk (Sum of sub.price all paying members: active + terminated/historical)
+  activeContractedRevenue: number; // Omset Kas khusus member yang saat ini aktif
+  historicalContractedRevenue: number; // Omset Kas dari mantan/kicked member yang pernah membayar
   totalMasterCost: number;        // Total Modal Akun Induk Aktual (Sum of pool.masterCost)
   totalNetProfit: number;         // Total Laba Bersih Riil (totalContractedRevenue - totalMasterCost)
   totalProfitMarginPercent: number; // Margin Keuntungan Total (%)

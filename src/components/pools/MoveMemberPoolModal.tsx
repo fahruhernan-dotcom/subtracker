@@ -25,7 +25,8 @@ interface MoveMemberPoolModalProps {
     targetPool: AccountPool,
     transferOption: 'keep_dates' | 'renew',
     newDurationMonths?: number,
-    newBillingCycle?: BillingCycle
+    newBillingCycle?: BillingCycle,
+    renewalPrice?: number
   ) => void;
 }
 
@@ -48,6 +49,7 @@ export const MoveMemberPoolModal: React.FC<MoveMemberPoolModalProps> = ({
   const [selectedTargetPoolId, setSelectedTargetPoolId] = useState<string>('');
   const [transferOption, setTransferOption] = useState<'keep_dates' | 'renew'>('keep_dates');
   const [renewMonths, setRenewMonths] = useState<number>(1);
+  const [renewalPrice, setRenewalPrice] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Pre-select pool when modal opens
@@ -70,6 +72,9 @@ export const MoveMemberPoolModal: React.FC<MoveMemberPoolModalProps> = ({
       } else {
         setSelectedTargetPoolId('');
       }
+
+      // Set initial price for renewal
+      setRenewalPrice(Number(sub.price) || 0);
 
       // If member is terminated or expired, default to 'renew'
       if (sub.status === 'TERMINATED' || getDaysRemaining(sub.endDate) < 0) {
@@ -144,7 +149,8 @@ export const MoveMemberPoolModal: React.FC<MoveMemberPoolModalProps> = ({
       selectedTarget.pool,
       transferOption,
       transferOption === 'renew' ? renewMonths : undefined,
-      cycle
+      cycle,
+      transferOption === 'renew' ? renewalPrice : undefined
     );
     setIsSubmitting(false);
     onClose();
@@ -411,6 +417,24 @@ export const MoveMemberPoolModal: React.FC<MoveMemberPoolModalProps> = ({
                     <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
                       s/d {formatDate(prospectiveEndDate)}
                     </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      Nominal Kas Perpanjangan (IDR):
+                    </span>
+                    <div className="relative flex-1 max-w-[150px]">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Rp</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={renewalPrice}
+                        onChange={(e) => setRenewalPrice(Number(e.target.value) || 0)}
+                        className="w-full pl-8 pr-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-right text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500"
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

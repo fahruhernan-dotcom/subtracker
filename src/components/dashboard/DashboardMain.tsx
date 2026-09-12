@@ -44,7 +44,7 @@ import {
   computeDashboardMetrics, 
   generateNotificationsFromSubscriptions 
 } from '@/lib/lifecycle/state-engine';
-import { formatDate, getDaysRemaining } from '@/lib/utils';
+import { formatDate, getDaysRemaining, formatCurrency } from '@/lib/utils';
 import { format, parseISO, addMonths, isValid } from 'date-fns';
 import { Navbar, CloudSyncStatus } from '@/components/layout/Navbar';
 import { Sidebar, NavTab } from '@/components/layout/Sidebar';
@@ -567,13 +567,15 @@ export default function DashboardMain() {
     targetPool: AccountPool,
     transferOption: 'keep_dates' | 'renew',
     newDurationMonths?: number,
-    newBillingCycle?: BillingCycle
+    newBillingCycle?: BillingCycle,
+    renewalPrice?: number
   ) => {
     const oldPoolName = sub.poolName || 'Tanpa Pool';
     const now = new Date().toISOString();
 
     let newStartDate = sub.startDate;
     let newEndDate = sub.endDate;
+    let newPrice = sub.price;
 
     if (transferOption === 'renew' && newDurationMonths) {
       const base = sub.status === 'TERMINATED' || getDaysRemaining(sub.endDate) < 0
@@ -582,12 +584,16 @@ export default function DashboardMain() {
       const validBase = isValid(base) ? base : new Date();
       newStartDate = format(validBase, 'yyyy-MM-dd');
       newEndDate = format(addMonths(validBase, newDurationMonths), 'yyyy-MM-dd');
+      if (renewalPrice !== undefined && renewalPrice > 0) {
+        newPrice = renewalPrice;
+      }
     }
 
     const updated: Subscription = {
       ...sub,
       poolId: targetPool.id,
       poolName: targetPool.name,
+      price: newPrice,
       startDate: newStartDate,
       endDate: newEndDate,
       billingCycle: newBillingCycle || sub.billingCycle,
@@ -604,7 +610,7 @@ export default function DashboardMain() {
       updated.name,
       sub.memberName,
       'MEMBER_SWAPPED',
-      `Member ${sub.memberName} (${sub.accountEmail}) dipindahkan dari "${oldPoolName}" ke "${targetPool.name}" (${transferOption === 'renew' ? `Perpanjang ${newDurationMonths} bln s/d ${formatDate(newEndDate)}` : `Masa aktif s/d ${formatDate(newEndDate)}`}). Data profil tersimpan utuh.`
+      `Member ${sub.memberName} (${sub.accountEmail}) dipindahkan dari "${oldPoolName}" ke "${targetPool.name}" (${transferOption === 'renew' ? `Perpanjang ${newDurationMonths} bln s/d ${formatDate(newEndDate)} (Kas: ${formatCurrency(newPrice, 'IDR')})` : `Masa aktif s/d ${formatDate(newEndDate)}`}). Data profil tersimpan utuh.`
     );
 
     await loadData();

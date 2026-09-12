@@ -16,13 +16,14 @@
 
 ## 📑 Indeks Modul Spesifikasi Dokumen Terkait
 
-Dokumentasi lengkap SubTracker dibagi menjadi 5 modul dokumen terspesialisasi:
+Dokumentasi lengkap SubTracker dibagi menjadi 6 modul dokumen terspesialisasi:
 
 1. **[PRD Utama (Dokumen Ini)](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/PRD_SUBTRACKER_COMMAND_CENTER.md)**: Executive summary, arsitektur sistem, peta navigasi, dan rekapitulasi fitur end-to-end.
 2. **[Spesifikasi Manajemen Pool & Siklus Hidup Member](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_POOL_AND_MEMBER_LIFECYCLE.md)**: State engine, dual-tier pool (Garansi vs Lepas), auto-nonaktif pool expired, SOP kick, riwayat mantan member (soft-kick archive), dan modul pindah pool.
 3. **[Spesifikasi Pencarian Cerdas, Sorting & Desain Interaksi](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_SEARCH_SORT_AND_UX.md)**: Mesin pencarian multi-token (No WA, email, notes, deep pool search), sorting 2-lapis (akun expired otomatis di bawah), header tabel interaktif, dan mobile responsive design (375px).
 4. **[Spesifikasi Katalog Harga Dinamis & Analitik Finansial](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_PRICING_AND_FINANCIALS.md)**: Database-driven packages (Primary vs Secondary email), pendaftaran 1-klik dari paket, kalkulator unit economics, MRR, payback period BEP, dan generator broadcast WA.
 5. **[Spesifikasi Keamanan Data, Kredensial Vault & Sinkronisasi Cloud](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_DATA_SECURITY_AND_SYNC.md)**: Arsitektur Local-First (Dexie.js), Credential Vault terenkripsi, Supabase Real-time Sync, pencegahan error ekstensi browser (`suppress-extension-errors.js`), serta backup export/import & iCalendar sync.
+6. **[PRD & Manual Integrasi AI Agent (Hermes & Bot)](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/PRD_AI_AGENT_SYSTEM_DIRECTIVES.md)**: Pedoman mesin, aturan akuntansi kas terkunci (never-reset profit), data dictionary Supabase, kueri SQL baku, dan SOP triase otomatis untuk AI Agent.
 
 ---
 
@@ -112,6 +113,8 @@ flowchart TB
 | **Database-Driven Price List** | Admin dapat menambah, mengedit paket harga, menentukan flag Akun Utama/Sekunder, dan 1-klik daftarkan member langsung dari paket. | [SPEC_PRICING_AND_FINANCIALS.md](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_PRICING_AND_FINANCIALS.md) |
 | **Credential Vault & Cloud Sync** | Password akun master tersimpan aman, sinkronisasi dua arah real-time antara IndexedDB lokal dan Supabase PostgreSQL. | [SPEC_DATA_SECURITY_AND_SYNC.md](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_DATA_SECURITY_AND_SYNC.md) |
 | **Extension Isolation Shield** | Proteksi dari crash eksternal akibat ekstensi browser (`M_ID` TypeError) menggunakan script pencegat sebelum render. | [SPEC_DATA_SECURITY_AND_SYNC.md](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_DATA_SECURITY_AND_SYNC.md) |
+| **Locked Cash & Profit Engine** | Uang kas yang pernah dibayarkan member (`price > 0`) terkunci permanen di ledger omset & laba bersih, tidak pernah ter-reset saat member expired/di-kick atau pool mati. | [SPEC_PRICING_AND_FINANCIALS.md](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/SPEC_PRICING_AND_FINANCIALS.md) |
+| **AI Agent Directives & Rules** | Instruksi mesin baku untuk AI Agent (Hermes / Bot) guna mencegah halusinasi data, standardisasi kueri SQL, dan triase penagihan otomatis. | [PRD_AI_AGENT_SYSTEM_DIRECTIVES.md](file:///d:/Dokumen/02_Kerja_Profesional/Google%20One%20Pro/docs/PRD_AI_AGENT_SYSTEM_DIRECTIVES.md) |
 
 ---
 

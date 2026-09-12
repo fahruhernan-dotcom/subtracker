@@ -57,13 +57,18 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
 
   // Compute per-pool unit economics
   const poolAnalytics = pools.map(pool => {
-    // Members assigned to this pool
-    const members = subscriptions.filter(
+    // Active members occupying slots right now in this pool
+    const activeMembers = subscriptions.filter(
       s => (s.poolId === pool.id || s.poolName?.toLowerCase() === pool.name.toLowerCase()) && s.status !== 'TERMINATED'
     );
 
-    // 1. Total Actual Contracted Revenue (Sum of actual prices paid by active members)
-    const totalActualRevenue = members.reduce((sum, sub) => sum + (Number(sub.price) || 0), 0);
+    // All members associated with this pool (active + former/kicked) who contributed revenue
+    const allPoolMembers = subscriptions.filter(
+      s => (s.poolId === pool.id || s.poolName?.toLowerCase() === pool.name.toLowerCase())
+    );
+
+    // 1. Total Actual Contracted Revenue (All cash received by this pool from active & former members)
+    const totalActualRevenue = allPoolMembers.reduce((sum, sub) => sum + (Number(sub.price) || 0), 0);
     const totalActualCost = pool.masterCost || 0;
     const netActual = totalActualRevenue - totalActualCost;
     const actualMarginPercent = totalActualRevenue > 0
@@ -73,9 +78,9 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
       ? Number((totalActualRevenue / totalActualCost).toFixed(1))
       : (totalActualRevenue > 0 ? 10 : 0);
 
-    // 2. Normalized Monthly Run-Rate (MRR)
+    // 2. Normalized Monthly Run-Rate (MRR) - from currently active members
     let monthlyRevenue = 0;
-    members.forEach(sub => {
+    activeMembers.forEach(sub => {
       monthlyRevenue += getSubMonthlyRate(sub);
     });
     const monthlyCost = Math.round(totalActualCost / 12);
@@ -94,9 +99,11 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
 
     return {
       pool,
-      members,
-      memberCount: members.length,
-      occupancy: Math.round((members.length / pool.totalCapacity) * 100),
+      members: activeMembers,
+      allMembers: allPoolMembers,
+      memberCount: activeMembers.length,
+      kickedCount: allPoolMembers.length - activeMembers.length,
+      occupancy: Math.round((activeMembers.length / pool.totalCapacity) * 100),
       // Actual Metrics
       totalActualCost,
       totalActualRevenue,
@@ -282,17 +289,29 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
               </div>
               <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                 {period === 'actual' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] ring-1 ring-emerald-500/20">
-                    ~{formatCurrency(metrics.monthlyRevenueEstimate, 'IDR')} / bulan
-                  </span>
+                  <>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] ring-1 ring-emerald-500/20">
+                      ~{formatCurrency(metrics.monthlyRevenueEstimate, 'IDR')} / bulan
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold">
+                      ({metrics.totalActive} slot aktif)
+                    </span>
+                    {(metrics.historicalContractedRevenue || 0) > 0 && (
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block w-full mt-0.5">
+                        {formatCurrency(metrics.activeContractedRevenue || 0, 'IDR')} aktif + {formatCurrency(metrics.historicalContractedRevenue, 'IDR')} eks-pool
+                      </span>
+                    )}
+                  </>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold text-[10px] ring-1 ring-blue-500/20">
-                    Total Kas: {formatCurrency(metrics.totalContractedRevenue, 'IDR')}
-                  </span>
+                  <>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold text-[10px] ring-1 ring-blue-500/20">
+                      Total Kas: {formatCurrency(metrics.totalContractedRevenue, 'IDR')}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold">
+                      ({metrics.totalActive} slot)
+                    </span>
+                  </>
                 )}
-                <span className="text-[10px] text-slate-400 font-bold">
-                  ({metrics.totalActive} slot)
-                </span>
               </div>
             </div>
           </div>
@@ -548,7 +567,9 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                   {poolAnalytics.map(({ 
                     pool, 
                     members, 
+                    allMembers,
                     memberCount, 
+                    kickedCount,
                     occupancy, 
                     totalActualCost,
                     totalActualRevenue,
@@ -773,11 +794,11 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                                   <div className="flex items-center justify-between text-xs font-black text-slate-900 dark:text-white">
                                     <span className="flex items-center gap-1.5">
                                       <UserCheck className="h-4 w-4 text-emerald-500" />
-                                      Daftar Member & Iuran yang Masuk ke Pool Ini ({members.length}):
+                                      Daftar Member & Kas Masuk ke Pool Ini ({allMembers.length} Member: {memberCount} Aktif{kickedCount > 0 ? `, ${kickedCount} Mantan` : ''}):
                                     </span>
                                   </div>
 
-                                  {members.length === 0 ? (
+                                  {allMembers.length === 0 ? (
                                     <div className="p-4 text-center rounded-xl bg-slate-50 dark:bg-slate-800/30 text-xs text-slate-400 font-medium">
                                       Belum ada member yang dialokasikan ke pool ini. Sisa slot kosong: <strong>{pool.totalCapacity} slot</strong>.
                                     </div>
@@ -796,8 +817,9 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                          {members.map((m) => {
+                                          {allMembers.map((m) => {
                                             const monthlyRate = getSubMonthlyRate(m);
+                                            const isTerminated = m.status === 'TERMINATED';
                                             return (
                                               <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                                                 <td className="p-2.5 pl-3 font-extrabold text-slate-900 dark:text-white">
@@ -815,7 +837,7 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                                                   {formatCurrency(m.price, 'IDR')}
                                                 </td>
                                                 <td className="p-2.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                                  {formatCurrency(monthlyRate, 'IDR')}/bln
+                                                  {isTerminated ? '-' : `${formatCurrency(monthlyRate, 'IDR')}/bln`}
                                                 </td>
                                                 <td className="p-2.5 text-[11px] text-slate-500 dark:text-slate-400">
                                                   {formatDate(m.endDate)}
@@ -826,9 +848,11 @@ export const FinancialAnalyticsView: React.FC<FinancialAnalyticsViewProps> = ({
                                                       ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20' 
                                                       : m.status === 'EXPIRING_SOON'
                                                       ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20'
+                                                      : isTerminated
+                                                      ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-1 ring-purple-500/20 font-bold'
                                                       : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20'
                                                   }`}>
-                                                    {m.status}
+                                                    {isTerminated ? 'Mantan (Kas Terkunci)' : m.status}
                                                   </span>
                                                 </td>
                                               </tr>

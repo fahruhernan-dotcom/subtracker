@@ -74,6 +74,12 @@ export const PoolCard: React.FC<PoolCardProps> = ({
     s => (s.poolId === pool.id || s.poolName?.toLowerCase() === pool.name.toLowerCase()) && s.status === 'TERMINATED'
   );
 
+  // All members who contributed revenue to this pool (active + kicked)
+  const allPoolMembers = subscriptions.filter(
+    s => (s.poolId === pool.id || s.poolName?.toLowerCase() === pool.name.toLowerCase())
+  );
+  const totalPoolKas = allPoolMembers.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+
   const activeCount = poolMembers.length;
   const availableSlots = Math.max(0, pool.totalCapacity - activeCount);
   const occupancyPercent = Math.min(100, Math.round((activeCount / pool.totalCapacity) * 100));
@@ -292,6 +298,9 @@ export const PoolCard: React.FC<PoolCardProps> = ({
                 </span>
                 <span className="font-mono font-black text-slate-900 dark:text-white">
                   {formatCurrency(monthlyRevenue, 'IDR')}<span className="text-[10px] font-normal text-slate-400">/bln</span>
+                </span>
+                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium block">
+                  Kas: {formatCurrency(totalPoolKas, 'IDR')}
                 </span>
               </div>
               <div className="space-y-0.5 text-right">
