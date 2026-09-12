@@ -1255,6 +1255,7 @@ export default function DashboardMain() {
         pools={pools}
         onOpenAddPoolModal={() => { setIsAddEditOpen(false); setEditingPool(null); setIsAddPoolOpen(true); }}
         preselectedPool={preselectedPool}
+        existingSubscriptions={subscriptions}
       />
 
       {/* MASTER POOL MODAL */}
