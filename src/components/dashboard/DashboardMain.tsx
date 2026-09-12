@@ -380,10 +380,38 @@ export default function DashboardMain() {
       await logActivity(
         newSub.id, 
         newSub.name, 
-        newSub.memberName,
+        newSub.memberName, 
         'CREATED', 
         `Menambahkan member baru ${newSub.memberName} ke ${newSub.poolName || newSub.name}`
       );
+    }
+
+    // 🔄 Auto-backfill member's phone number across other subscriptions in Dexie & Supabase
+    if (data.clientPhone && data.clientPhone.trim().length >= 8) {
+      const cleanPhone = data.clientPhone.trim();
+      const currentEmail = data.accountEmail?.trim().toLowerCase();
+      const currentMemberName = data.memberName?.trim().toLowerCase();
+
+      const needBackfill = subscriptions.filter(s => 
+        s.id !== (editId || '') &&
+        (!s.clientPhone || s.clientPhone.trim() === '') &&
+        (
+          (currentEmail && s.accountEmail && s.accountEmail.trim().toLowerCase() === currentEmail) ||
+          (currentMemberName && s.memberName && s.memberName.trim().toLowerCase() === currentMemberName)
+        )
+      );
+
+      if (needBackfill.length > 0) {
+        for (const targetSub of needBackfill) {
+          const backfilledSub: Subscription = {
+            ...targetSub,
+            clientPhone: cleanPhone,
+            updatedAt: now,
+          };
+          await db.subscriptions.put(backfilledSub);
+          await upsertSubscriptionCloud(backfilledSub);
+        }
+      }
     }
 
     await loadData();

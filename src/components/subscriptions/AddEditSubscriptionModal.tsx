@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   X, 
   Sparkles, 
@@ -234,6 +234,8 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
   const [existingSearchQuery, setExistingSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedFromExisting, setSelectedFromExisting] = useState<string | null>(null);
+  const [missingPhoneNotice, setMissingPhoneNotice] = useState(false);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   // Form Submission Lock Guard
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -302,11 +304,26 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
     return Array.from(map.values()).sort((a, b) => a.memberName.localeCompare(b.memberName));
   }, [existingSubscriptions, internalSubscriptions]);
 
+  const handleMemberNameChange = (val: string) => {
+    setMemberName(val);
+    const pool = pools.find(p => p.id === poolId) || preselectedPool;
+    if (pool && (!name || name.startsWith(pool.name) || name === PRESET_SERVICES[0].name || name.includes('Slot'))) {
+      setName(val ? `${pool.name} - ${val}` : `${pool.name} - Slot Member`);
+    }
+  };
+
   // Handle selecting an existing member from either autocomplete or modal
   const handleSelectExistingMember = (client: ExistingClientOption) => {
     handleMemberNameChange(client.memberName);
-    if (client.clientPhone) {
-      setClientPhone(client.clientPhone);
+    if (client.clientPhone && client.clientPhone.trim()) {
+      setClientPhone(client.clientPhone.trim());
+      setMissingPhoneNotice(false);
+    } else {
+      setClientPhone('');
+      setMissingPhoneNotice(true);
+      setTimeout(() => {
+        phoneInputRef.current?.focus();
+      }, 150);
     }
     if (client.accountEmail) {
       setAccountEmail(client.accountEmail);
@@ -455,14 +472,6 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
       if (activeDurationPackage === 'pool_end' && matched.masterEndDate) {
         setEndDate(matched.masterEndDate);
       }
-    }
-  };
-
-  const handleMemberNameChange = (val: string) => {
-    setMemberName(val);
-    const pool = pools.find(p => p.id === poolId) || preselectedPool;
-    if (pool && (!name || name.startsWith(pool.name) || name === PRESET_SERVICES[0].name || name.includes('Slot'))) {
-      setName(val ? `${pool.name} - ${val}` : `${pool.name} - Slot Member`);
     }
   };
 
@@ -711,11 +720,17 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
 
               {/* Status Banner when auto-filled from existing client */}
               {selectedFromExisting && (
-                <div className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className={`flex items-center justify-between text-xs px-3 py-2 rounded-xl border animate-in fade-in slide-in-from-top-1 duration-200 ${
+                  clientPhone 
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                }`}>
                   <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <CheckCircle2 className={`h-4 w-4 shrink-0 ${clientPhone ? 'text-emerald-500' : 'text-amber-500'}`} />
                     <span className="truncate">
-                      Data otomatis terisi dari pelanggan: <strong>{selectedFromExisting}</strong>
+                      Data otomatis terisi: <strong>{selectedFromExisting}</strong>
+                      {clientPhone ? ` • 📱 ${clientPhone}` : ' (⚠️ Belum ada nomor WhatsApp)'}
+                      {accountEmail ? ` • ✉️ ${accountEmail}` : ''}
                     </span>
                   </div>
                   <button
@@ -725,6 +740,7 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                       setMemberName('');
                       setClientPhone('');
                       setAccountEmail('');
+                      setMissingPhoneNotice(false);
                     }}
                     className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 underline ml-2 shrink-0 cursor-pointer"
                   >
@@ -752,9 +768,34 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                       list="existing-members-datalist"
                       value={memberName}
                       onChange={(e) => {
-                        handleMemberNameChange(e.target.value);
-                        if (selectedFromExisting && e.target.value !== selectedFromExisting) {
+                        const val = e.target.value;
+                        handleMemberNameChange(val);
+
+                        // Instant auto-match when picking from native datalist or typing exact name
+                        const matched = uniqueMembers.find(
+                          m => m.memberName.trim().toLowerCase() === val.trim().toLowerCase()
+                        );
+                        if (matched) {
+                          if (matched.clientPhone && matched.clientPhone.trim()) {
+                            setClientPhone(matched.clientPhone.trim());
+                            setMissingPhoneNotice(false);
+                          } else {
+                            setClientPhone('');
+                            setMissingPhoneNotice(true);
+                            setTimeout(() => {
+                              phoneInputRef.current?.focus();
+                            }, 150);
+                          }
+                          if (matched.accountEmail) {
+                            setAccountEmail(matched.accountEmail);
+                          }
+                          if (matched.avatarColor) {
+                            setAvatarColor(matched.avatarColor);
+                          }
+                          setSelectedFromExisting(matched.memberName);
+                        } else if (selectedFromExisting && val !== selectedFromExisting) {
                           setSelectedFromExisting(null);
+                          setMissingPhoneNotice(false);
                         }
                       }}
                       onFocus={() => setIsSearchFocused(true)}
@@ -771,7 +812,7 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                         <option 
                           key={client.memberName} 
                           value={client.memberName}
-                          label={client.clientPhone ? `${client.memberName} (${client.clientPhone})` : client.memberName} 
+                          label={client.clientPhone ? `${client.memberName} (${client.clientPhone})` : `${client.memberName} (Tanpa WA)`} 
                         />
                       ))}
                     </datalist>
@@ -805,7 +846,11 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                                   {client.memberName}
                                 </div>
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                                  {client.clientPhone && <span>📱 {client.clientPhone}</span>}
+                                  {client.clientPhone ? (
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">📱 {client.clientPhone}</span>
+                                  ) : (
+                                    <span className="text-slate-400 italic">Tanpa WA</span>
+                                  )}
                                   {client.accountEmail && <span className="truncate">✉️ {client.accountEmail}</span>}
                                 </div>
                               </div>
@@ -821,16 +866,41 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nomor WhatsApp Member (08... / 62...)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700 dark:text-slate-300">
+                      Nomor WhatsApp Member (08... / 62...)
+                    </label>
+                    {selectedFromExisting && !clientPhone && (
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-900/40 px-2 py-0.5 rounded-md">
+                        Belum ada nomor
+                      </span>
+                    )}
+                  </div>
                   <input
+                    ref={phoneInputRef}
                     type="text"
                     value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
+                    onChange={(e) => {
+                      setClientPhone(e.target.value);
+                      if (e.target.value.trim().length > 0) {
+                        setMissingPhoneNotice(false);
+                      }
+                    }}
                     placeholder="08xxxxxxxxxx"
-                    className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
+                    className={`w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-slate-100 focus:outline-none font-medium transition-all ${
+                      missingPhoneNotice
+                        ? 'border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                    }`}
                   />
+                  {missingPhoneNotice && (
+                    <div className="flex items-start gap-1.5 mt-1.5 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 p-2 rounded-xl animate-in fade-in">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
+                      <span>
+                        <strong>Profil {selectedFromExisting || memberName} belum memiliki nomor WhatsApp di database.</strong> Silakan masukkan nomor WhatsApp sekarang agar otomatis tersimpan & ter-fetch untuk order selanjutnya!
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -842,7 +912,29 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                   type="email"
                   required
                   value={accountEmail}
-                  onChange={(e) => setAccountEmail(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAccountEmail(val);
+
+                    // Reverse auto-match when typing/pasting existing member email
+                    if (val && val.includes('@') && val.length > 5) {
+                      const matchedByEmail = uniqueMembers.find(
+                        m => m.accountEmail && m.accountEmail.trim().toLowerCase() === val.trim().toLowerCase()
+                      );
+                      if (matchedByEmail) {
+                        if (!memberName || memberName.trim() === '') {
+                          handleMemberNameChange(matchedByEmail.memberName);
+                        }
+                        if (matchedByEmail.clientPhone && (!clientPhone || clientPhone.trim() === '')) {
+                          setClientPhone(matchedByEmail.clientPhone.trim());
+                          setMissingPhoneNotice(false);
+                        }
+                        if (!selectedFromExisting) {
+                          setSelectedFromExisting(matchedByEmail.memberName);
+                        }
+                      }
+                    }
+                  }}
                   placeholder="email.member@domain.com"
                   className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-medium"
                 />
@@ -1422,12 +1514,15 @@ export const AddEditSubscriptionModal: React.FC<AddEditSubscriptionModalProps> =
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500 dark:text-slate-400">
                           {client.clientPhone ? (
-                            <span className="flex items-center gap-1 font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
+                            <span className="flex items-center gap-1 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
                               <Phone className="h-3 w-3" />
                               {client.clientPhone}
                             </span>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic">Tanpa WA</span>
+                            <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-md font-medium">
+                              <AlertCircle className="h-3 w-3" />
+                              WA Belum Tercatat
+                            </span>
                           )}
                           {client.accountEmail && (
                             <span className="flex items-center gap-1 font-mono text-[11px] truncate max-w-[200px]">
